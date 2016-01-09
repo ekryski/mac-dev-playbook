@@ -74,3 +74,12 @@ I also use the following apps at least once or twice per week, but unfortunately
 ## Testing the Playbook
 
 I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead, I use [Packer](http://packer.io) and Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VirtualBox VM, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
+
+TL;DR
+
+1. Download the installer for your OSX version though the app store
+2. `brew install virtualbox, virtualbox-extension-pack`
+3. `git clone https://github.com/timsutton/osx-vm-templates`
+4. `cd osx-vm-templates`
+5. `sudo prepare_iso/prepare_iso.sh -D DISABLE_REMOTE_MANAGEMENT "/Applications/Install OS X El Capitan.app" out`
+6. `packer build -var iso_checksum=dc34e0dcf6c34e626a85c40f19e9a85d -var iso_url=../out/OSX_InstallESD_10.11.2_15C50.dmg -only virtualbox-iso template.json`
