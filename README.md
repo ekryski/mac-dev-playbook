@@ -36,6 +36,10 @@ It's my hope that I can get the rest of these things wrapped up into Ansible pla
   3. Install [Sublime Package Manager](http://sublime.wbond.net/installation).
   4. Install all the other apps (see below).
   5. Configure extra Mail and/or Calendar accounts (e.g. Google, Exchange, etc.).
+  6. Install RVM for Ruby dev
+  7. Install virtual_env for python dev
+  8. Install latest stable ruby
+  9. Install latest stable nodejs
 
 ### Applications/packages to be added:
 I also use the following apps at least once or twice per week, but unfortunately, they are not able to be grabbed and installed via CLI, or any other way I can find (so far), I have to manually install all of these apps from within the App Store or from direct downloads.
