@@ -3,7 +3,8 @@
 	"font_size": 12.0,
 	"ignored_packages":
 	[
-		"Vintage"
+		"Vintage",
+    "Markdown"
 	],
 	"rulers":
 	[
@@ -14,7 +15,7 @@
   "margin": 4,
   "fold_buttons": true,
   "fade_fold_buttons": true,
-  "spell_check": false,
+  "spell_check": true,
   "tab_size": 2,
   "translate_tabs_to_spaces": true,
   "detect_indentation": true,
