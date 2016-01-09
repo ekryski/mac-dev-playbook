@@ -73,4 +73,4 @@ I also use the following apps at least once or twice per week, but unfortunately
 
 ## Testing the Playbook
 
-Many people have asked me if I often wipe my entire workstation and start from scratch just to test changes to the playbook. Nope! Instead, I use Jeff Geerling's posted instructions for how to build a [Mac OS X VirtualBox VM](https://github.com/geerlingguy/mac-osx-virtualbox-vm), on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
+I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead, I use [Packer](http://packer.io) and Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VirtualBox VM, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
