@@ -91,3 +91,4 @@ homebrew_cask_apps:
   - vagrant-manager
   - vlc
   - virtualbox
+  - virtualbox-extension-pack
