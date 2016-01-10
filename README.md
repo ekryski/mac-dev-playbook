@@ -10,8 +10,7 @@ This is a work in progress, and is mostly a means for me to document my current 
   2. Download and install Xcode.
   3. Ensure Apple's command line tools are installed (`xcode-select --install` to launch the installer).
   4. Clone this repository to your local drive.
-  5. Run the command `$ ansible-galaxy install -r requirements.txt` inside this directory to install required Ansible roles.
-  6. Run `ansible-playbook main.yml -i inventory --ask-sudo-pass` from the same directory as this README file.
+  5. Run `ansible-playbook main.yml -i inventory --ask-sudo-pass` from the same directory as this README file or run it in Vagrant using the instructions below.
 
 ## Included Applications / Configuration
 
@@ -63,7 +62,7 @@ I also use the following apps at least once or twice per week, but unfortunately
 
 ### Configuration to be added:
 
-  - I have vim configuration in the repo, but I still need to add the actual installation:
+  - I have Vim configuration in the repo, but I still need to add the actual installation:
   
     ```
     mkdir -p ~/.vim/autoload
@@ -81,22 +80,30 @@ I don't need to wipe my entire workstation and start from scratch just to test c
 To do this simply run:
 
 1. `vagrant init jhcook/osx-elcapitan-10.11;`
-2. Add your provisioner:
+2. Add your provisioners:
 
-  ```
+  ```ruby
   Vagrant.configure(2) do |config|
 
-    #
-    # Run Ansible from the Vagrant Host
-    #
+    # Install Ansible first because ansible_local isn't supported
+    # in Vagrant on OS X (at least not El Capitan)
+    config.vm.provision "shell", inline: <<-SHELL
+      sudo easy_install pip
+      sudo pip install ansible
+    SHELL
+    
+    # Run Ansible Playbook from your host machine on
+    # the Vagrant Host
     config.vm.provision "ansible_local" do |ansible|
-      ansible.playbook = "main.yml"
+      ansible.playbook = "playbook.yml"
+      ansible.sudo = true
+      ansible.inventory_path = "inventory"
     end
 
   end
   ```
 
-3. `vagrant up --provider virtualbox`
+3. `vagrant up`
 
 
 ### A bit more Neckbeardy
