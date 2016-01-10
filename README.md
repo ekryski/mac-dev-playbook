@@ -76,7 +76,7 @@ I also use the following apps at least once or twice per week, but unfortunately
 
 ## Testing the Playbook
 
-I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead I use a Vagrant to spin up an OSX virtual machine, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
+I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead I use Vagrant to spin up an OSX virtual machine, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
 
 To do this simply run:
 
@@ -101,13 +101,13 @@ To do this simply run:
 
 ### A bit more Neckbeardy
 
-If you want to build the Virtual Box Vagrant Box manually and customize it, you can follow Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VM image with [Packer](http://packer.io).
+If you want to build the VirtualBox Vagrant box manually and customize it, you can follow Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VM image with [Packer](http://packer.io).
 
 #### TL; DR
 
 > **NOTE:** You need to have Vagrant installed
 
-1. Download the installer for your OSX version though the app store
+1. Download the El Capitan installer though the app store (or whatever OSX version you want).
 2. `brew install virtualbox, virtualbox-extension-pack`
 3. `git clone https://github.com/timsutton/osx-vm-templates`
 4. `cd osx-vm-templates`
@@ -134,7 +134,7 @@ If you want to build the Virtual Box Vagrant Box manually and customize it, you 
 
 #### Taking it a step further
 
-Once you have figured out your Ansible playbook and how it should look. You can solidify it a bit more by setting it up as a provisioner in Packer like so:
+Once you have tested your Ansible playbook and are happy with it. You can solidify it a bit more by setting it up as a provisioner in Packer like so:
 
 ```
 {
