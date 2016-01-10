@@ -15,7 +15,7 @@ This is a work in progress, and is mostly a means for me to document my current 
 
 ## Included Applications / Configuration
 
-View the [main.ym]() file to see what applications are installed.
+View this [main.yml](https://github.com/ekryski/mac-dev-playbook/blob/master/vars/main.yml) file to see what applications are installed.
 
 My [dotfiles](https://github.com/ekryski/dotfiles) are also installed into the current user's home directory, including the `.osx` dotfile for configuring many aspects of Mac OS X for better performance and ease of use.
 
@@ -29,10 +29,12 @@ It's my hope that I can get the rest of these things wrapped up into Ansible pla
 
   1. Generate SSH key and upload it to Github and Bitbucket
   2. Set Homebrew Github access token:
+  
       ```
       Try again in 44 minutes 12 seconds, or create a personal access token:
       https://github.com/settings/tokens/new?scopes=&description=Homebrew and then set the token as: HOMEBREW_GITHUB_API_TOKEN
       ```
+  
   3. Install [Sublime Package Manager](http://sublime.wbond.net/installation).
   4. Install all the other apps (see below).
   5. Configure extra Mail and/or Calendar accounts (e.g. Google, Exchange, etc.).
@@ -62,6 +64,7 @@ I also use the following apps at least once or twice per week, but unfortunately
 ### Configuration to be added:
 
   - I have vim configuration in the repo, but I still need to add the actual installation:
+  
     ```
     mkdir -p ~/.vim/autoload
     mkdir -p ~/.vim/bundle
@@ -73,9 +76,36 @@ I also use the following apps at least once or twice per week, but unfortunately
 
 ## Testing the Playbook
 
-I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead, I use [Packer](http://packer.io) and Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VirtualBox VM, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
+I don't need to wipe my entire workstation and start from scratch just to test changes to the playbook. That would suck! Instead I use a Vagrant to spin up an OSX virtual machine, on which I can continually run and re-run this playbook to test changes and make sure things work correctly.
 
-TL;DR
+To do this simply run:
+
+1. `vagrant init jhcook/osx-elcapitan-10.11;`
+2. Add your provisioner:
+
+  ```
+  Vagrant.configure(2) do |config|
+
+    #
+    # Run Ansible from the Vagrant Host
+    #
+    config.vm.provision "ansible_local" do |ansible|
+      ansible.playbook = "main.yml"
+    end
+
+  end
+  ```
+
+3. `vagrant up --provider virtualbox`
+
+
+### A bit more Neckbeardy
+
+If you want to build the Virtual Box Vagrant Box manually and customize it, you can follow Tim Sutton's [amazing work](https://github.com/timsutton/osx-vm-templates) to build a Mac OS X VM image with [Packer](http://packer.io).
+
+#### TL; DR
+
+> **NOTE:** You need to have Vagrant installed
 
 1. Download the installer for your OSX version though the app store
 2. `brew install virtualbox, virtualbox-extension-pack`
@@ -83,3 +113,34 @@ TL;DR
 4. `cd osx-vm-templates`
 5. `sudo prepare_iso/prepare_iso.sh -D DISABLE_REMOTE_MANAGEMENT "/Applications/Install OS X El Capitan.app" out`
 6. `packer build -var iso_checksum=dc34e0dcf6c34e626a85c40f19e9a85d -var iso_url=../out/OSX_InstallESD_10.11.2_15C50.dmg -only virtualbox-iso template.json`
+7. `vagrant box add virtualbox-osx-el-capitan-10.1.1 ./packer_virtualbox-iso_virtualbox.box`
+8. `vagrant init virtualbox-osx-el-capitan-10.1.1`
+9. Add this to your Vagrantfile:
+
+  ```
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    # vb.gui = true
+  
+    # Customize the amount of memory on the VM:
+    vb.memory = "2048"
+
+    # Setup the synced directory
+    config.vm.synced_folder ".", "/vagrant", type: "rsync"
+  end
+  ```
+
+10. `vagrant up`
+
+#### Taking it a step further
+
+Once you have figured out your Ansible playbook and how it should look. You can solidify it a bit more by setting it up as a provisioner in Packer like so:
+
+```
+{
+  "type": "ansible-local",
+  "playbook_file": "main.yml"
+}
+```
+
+Then you can rebuild your Vagrant Box and the final image will have all your changes in Ansible applied as well!
