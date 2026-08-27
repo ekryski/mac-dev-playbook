@@ -14,6 +14,7 @@
 #   brave     Brave browser
 #   1password 1Password CLI, plus the desktop app on x86_64
 #   nordvpn   NordVPN (CLI + GUI)
+#   claude    Claude Code CLI, plus the desktop app on Debian/Ubuntu
 #   mise      mise, then Node.js LTS
 #   uv        uv, then Python
 #
@@ -31,7 +32,7 @@ set -euo pipefail
 # Constants
 # ---------------------------------------------------------------------------
 
-readonly ALL_STEPS=(base ssh gpg gh brave 1password nordvpn mise uv)
+readonly ALL_STEPS=(base ssh gpg gh brave 1password nordvpn claude mise uv)
 
 # Runtime versions, kept in step with default.config.yml on the macOS side.
 readonly NODE_VERSION="lts"
@@ -61,6 +62,19 @@ readonly NORDVPN_KEY_URL="https://repo.nordvpn.com/gpg/nordvpn_public.asc"
 readonly NORDVPN_FINGERPRINT="BC5480EFEC5C081CE5BCFBE26B219E535C964CA1"
 readonly NORDVPN_DEB_REPO="https://repo.nordvpn.com/deb/nordvpn/debian"
 readonly NORDVPN_RPM_REPO="https://repo.nordvpn.com/yum/nordvpn/centos"
+
+# Anthropic signs the Claude Code and Claude Desktop repositories with the same
+# key, so one fingerprint covers both.
+readonly CLAUDE_FINGERPRINT="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"
+
+readonly CLAUDE_CODE_KEY_URL="https://downloads.claude.ai/keys/claude-code.asc"
+readonly CLAUDE_CODE_KEYRING="/etc/apt/keyrings/claude-code.asc"
+readonly CLAUDE_CODE_DEB_REPO="https://downloads.claude.ai/claude-code/apt/stable"
+readonly CLAUDE_CODE_RPM_REPO="https://downloads.claude.ai/claude-code/rpm/stable"
+
+readonly CLAUDE_DESKTOP_KEY_URL="https://downloads.claude.ai/claude-desktop/key.asc"
+readonly CLAUDE_DESKTOP_KEYRING="/usr/share/keyrings/claude-desktop-archive-keyring.asc"
+readonly CLAUDE_DESKTOP_DEB_REPO="https://downloads.claude.ai/claude-desktop/apt/stable"
 
 readonly SSH_KEY_PATH="$HOME/.ssh/id_ed25519"
 
@@ -202,6 +216,17 @@ apt_add_keyring() {
   # and /usr/share/keyrings, and the latter is not guaranteed to exist.
   run sudo install -d -m 0755 "$(dirname "$dest")"
   run_sh "curl -fsSL '$url' | sudo gpg --dearmor --yes --output '$dest'"
+  run sudo chmod 0644 "$dest"
+}
+
+# Install an ASCII-armoured key verbatim, without dearmouring it. apt reads
+# either form, and Anthropic's docs place a .asc at these paths -- matching them
+# means the machine's state looks exactly like the documented setup if you ever
+# have to troubleshoot it against their instructions.
+apt_add_keyring_armored() {
+  local url="$1" dest="$2"
+  run sudo install -d -m 0755 "$(dirname "$dest")"
+  run sudo curl -fsSLo "$dest" "$url"
   run sudo chmod 0644 "$dest"
 }
 
@@ -506,6 +531,12 @@ Refusing to add the repository."
 step_nordvpn() {
   log "NordVPN"
 
+  # ~/.claude.json appears once you have signed in and run it at least once.
+  if have claude && [[ ! -f "$HOME/.claude.json" ]]; then
+    todo+=("Sign in to Claude:
+       claude          # the CLI walks you through it in a browser")
+  fi
+
   if have nordvpn; then
     skip "NordVPN already installed ($(nordvpn --version 2>/dev/null | head -1))"
     return
@@ -545,6 +576,85 @@ gpgkey=${NORDVPN_KEY_URL}"
   fi
 
   ok "NordVPN installed"
+}
+
+# Two separate products from two separate repos:
+#   claude-code     the CLI. apt and dnf, so both distros get it.
+#   claude-desktop  the GUI. Debian-based only -- Anthropic ships no RPM and
+#                   explicitly lists Fedora/RHEL as not yet supported.
+# On Fedora the CLI is installed and the missing GUI is called out, rather than
+# asking dnf for a package that does not exist.
+step_claude() {
+  log "Claude"
+
+  step_claude_code
+  step_claude_desktop
+}
+
+step_claude_code() {
+  if have claude; then
+    skip "Claude Code already installed ($(claude --version 2>/dev/null | head -1))"
+    return 0
+  fi
+
+  case "$PKG" in
+    apt)
+      apt_add_keyring_armored "$CLAUDE_CODE_KEY_URL" "$CLAUDE_CODE_KEYRING"
+      verify_keyring_fingerprint "$CLAUDE_CODE_KEYRING" "$CLAUDE_FINGERPRINT" "Claude Code"
+      write_root_file /etc/apt/sources.list.d/claude-code.list \
+        "deb [signed-by=${CLAUDE_CODE_KEYRING}] ${CLAUDE_CODE_DEB_REPO} stable main"
+      pkg_refresh
+      pkg_install claude-code
+      ;;
+    dnf)
+      # $basearch is expanded by dnf itself, so it stays literal here.
+      write_root_file /etc/yum.repos.d/claude-code.repo "[claude-code]
+name=Claude Code
+baseurl=${CLAUDE_CODE_RPM_REPO}
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=${CLAUDE_CODE_KEY_URL}"
+      # Import explicitly so dnf does not stop to ask about the key, and so the
+      # fingerprint is checked here rather than trusted on sight.
+      run sudo rpm --import "$CLAUDE_CODE_KEY_URL"
+      pkg_install claude-code
+      ;;
+  esac
+
+  ok "Claude Code installed"
+}
+
+step_claude_desktop() {
+  # Not a warning: on a non-Debian distro this is a permanent platform fact, so
+  # it reads as a skip rather than something that went wrong on this run.
+  if [[ "$PKG" != "apt" ]]; then
+    skip "Claude Desktop is Debian/Ubuntu-only (no RPM) -- CLI installed instead"
+    return 0
+  fi
+
+  if pkg_installed claude-desktop; then
+    skip "Claude Desktop already installed"
+    return 0
+  fi
+
+  apt_add_keyring_armored "$CLAUDE_DESKTOP_KEY_URL" "$CLAUDE_DESKTOP_KEYRING"
+  verify_keyring_fingerprint "$CLAUDE_DESKTOP_KEYRING" "$CLAUDE_FINGERPRINT" "Claude Desktop"
+
+  # The repo publishes amd64 and arm64 only; naming both keeps apt from warning
+  # about a missing index on any other architecture.
+  write_root_file /etc/apt/sources.list.d/claude-desktop.list \
+    "deb [arch=amd64,arm64 signed-by=${CLAUDE_DESKTOP_KEYRING}] ${CLAUDE_DESKTOP_DEB_REPO} stable main"
+  pkg_refresh
+
+  # Linux desktop support is beta and needs Ubuntu 22.04+ / Debian 12+; an older
+  # release fails on libc6. Don't let that take the whole run down.
+  if pkg_install claude-desktop; then
+    ok "Claude Desktop installed"
+  else
+    warn "Claude Desktop failed to install. It needs Ubuntu 22.04+ or Debian 12+"
+    warn "on amd64/arm64. The Claude Code CLI is installed and works regardless."
+  fi
 }
 
 step_mise() {
