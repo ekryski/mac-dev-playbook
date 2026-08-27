@@ -12,7 +12,7 @@ Originally forked from [geerlingguy/mac-dev-playbook](https://github.com/geerlin
 On a machine with nothing installed:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/master/scripts/bootstrap.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/main/scripts/bootstrap.sh)"
 ```
 
 That installs the Xcode Command Line Tools, Homebrew, git and Ansible, clones

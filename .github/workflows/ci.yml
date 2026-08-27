@@ -3,7 +3,7 @@ name: CI
 
 "on":
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   schedule:
     # Weekly, so a collection or module deprecation surfaces before a rebuild day.

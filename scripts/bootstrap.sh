@@ -12,7 +12,7 @@
 #   5. the Galaxy collections the playbook depends on
 #
 # Usage, on a fresh machine:
-#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/master/scripts/bootstrap.sh)"
+#   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/main/scripts/bootstrap.sh)"
 
 set -euo pipefail
 
