@@ -9,16 +9,47 @@ headless server wants its own script; see [Server](#server) below.
 
 ## Quick start
 
+On a machine with nothing on it — no 1Password, no GitHub access, no repo:
+
 ```bash
-git clone https://github.com/ekryski/mac-dev-playbook.git
-cd mac-dev-playbook/linux
-./desktop-setup.sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/main/linux/bootstrap.sh)"
 ```
 
-Look before you leap:
+That untangles the chicken-and-egg problem — you can't clone your repos until
+GitHub trusts the machine, you can't authenticate with GitHub until you can read
+your credentials, and those live in 1Password, which isn't installed yet — by
+going in dependency order:
+
+1. base packages
+2. **1Password** → you sign in
+3. **GitHub CLI** → you sign in, reading credentials out of 1Password
+4. **SSH key** → generated and uploaded to your GitHub account automatically
+5. **clone the repo** over SSH, so private repos work
+6. hand off to `desktop-setup.sh` for everything else
+
+It stops and waits for you at steps 2 and 3. Everything else is unattended.
+
+> **Use `bash -c "$(curl …)"`, not `curl … | bash`.**
+> Piping makes the *script itself* bash's stdin, so the interactive 1Password
+> and GitHub prompts would read the script text instead of your keyboard. The
+> `bash -c "$(…)"` form passes the script as an argument and leaves stdin
+> attached to your terminal. (The script defends itself anyway — it reads every
+> prompt from `/dev/tty` directly, and refuses to start if there's no terminal
+> at all rather than hanging.)
+
+Preview it without changing anything:
 
 ```bash
-./desktop-setup.sh --dry-run
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/main/linux/bootstrap.sh)" -- --dry-run
+```
+
+### Already have the repo?
+
+Skip the bootstrap and run the setup directly:
+
+```bash
+cd mac-dev-playbook/linux
+./desktop-setup.sh            # or --dry-run first
 ```
 
 ## What it installs
@@ -50,6 +81,17 @@ and failing the whole transaction. Use the 1Password browser extension in Brave
 on those machines.
 
 Everything else — Brave, gh, NordVPN, mise, uv — has arm64 builds.
+
+## The two scripts
+
+| Script | For |
+|---|---|
+| `bootstrap.sh` | A machine with nothing. Handles sign-in ordering, then calls the other one. Downloads `desktop-setup.sh` rather than duplicating it, so there's one definition of how each package installs. |
+| `desktop-setup.sh` | The actual work. Standalone — run it directly whenever you already have the repo. |
+
+`bootstrap.sh` takes `--repo-dir DIR`, `--skip-setup`, `--dry-run`, and reads
+`REPO_REF` from the environment if you want to bootstrap from a branch rather
+than `main`.
 
 ## Running part of it
 

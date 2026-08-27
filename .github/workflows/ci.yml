@@ -41,7 +41,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check the shell scripts.
-        run: shellcheck scripts/bootstrap.sh linux/desktop-setup.sh
+        run: shellcheck scripts/bootstrap.sh linux/desktop-setup.sh linux/bootstrap.sh
 
   linux-dry-run:
     name: Linux dry run (${{ matrix.image }})
@@ -81,3 +81,18 @@ jobs:
           if sudo -u tester -i ./desktop-setup.sh --only nope --dry-run; then
             echo "expected a failure for an unknown step" && exit 1
           fi
+
+      # bootstrap.sh needs a terminal for the 1Password and GitHub sign-ins.
+      # CI has none, so it must refuse rather than hang waiting on input.
+      - name: bootstrap.sh refuses to run without a terminal.
+        run: |
+          cp linux/bootstrap.sh /home/tester/
+          chown tester /home/tester/bootstrap.sh
+          chmod +x /home/tester/bootstrap.sh
+          out=$(sudo -u tester -i ./bootstrap.sh 2>&1) && rc=0 || rc=$?
+          echo "$out"
+          if [ "$rc" -eq 0 ]; then
+            echo "expected bootstrap.sh to refuse without a tty" && exit 1
+          fi
+          echo "$out" | grep -q "No terminal available" \
+            || { echo "wrong failure message"; exit 1; }
