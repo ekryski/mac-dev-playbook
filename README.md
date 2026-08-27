@@ -7,6 +7,9 @@ machine: Homebrew, the apps I use, language runtimes, an SSH key, my
 Tested on **macOS 26 (Tahoe)**, Apple Silicon, **ansible-core 2.21**.
 Originally forked from [geerlingguy/mac-dev-playbook](https://github.com/geerlingguy/mac-dev-playbook).
 
+> **On Linux?** There's a much smaller bash script for Fedora and Ubuntu
+> desktops in [`linux/`](linux/) — see [linux/README.md](linux/README.md).
+
 ## Quick start
 
 On a machine with nothing installed:

@@ -40,5 +40,44 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check the bootstrap script.
-        run: shellcheck scripts/bootstrap.sh
+      - name: Check the shell scripts.
+        run: shellcheck scripts/bootstrap.sh linux/desktop-setup.sh
+
+  linux-dry-run:
+    name: Linux dry run (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "fedora:latest"]
+    container:
+      image: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # The script refuses to run as root, so exercise it as a normal user with
+      # passwordless sudo -- the same shape as a real desktop.
+      - name: Create an unprivileged user.
+        run: |
+          if command -v apt-get >/dev/null; then
+            apt-get update -qq && apt-get install -y -qq sudo curl ca-certificates
+          else
+            dnf install -y -q sudo curl ca-certificates
+          fi
+          useradd -m -s /bin/bash tester
+          echo "tester ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/tester
+          chmod 0440 /etc/sudoers.d/tester
+
+      - name: Dry run.
+        run: |
+          cp linux/desktop-setup.sh /home/tester/
+          chown tester /home/tester/desktop-setup.sh
+          sudo -u tester -i ./desktop-setup.sh --dry-run
+
+      - name: Reject an unknown step name.
+        run: |
+          cp linux/desktop-setup.sh /home/tester/
+          chown tester /home/tester/desktop-setup.sh
+          if sudo -u tester -i ./desktop-setup.sh --only nope --dry-run; then
+            echo "expected a failure for an unknown step" && exit 1
+          fi
