@@ -1,0 +1,86 @@
+---
+- name: Ensure ~/.ssh exists with the right permissions.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.ssh"
+    state: directory
+    mode: "0700"
+
+# ed25519 over RSA: shorter, faster, and what GitHub recommends today.
+# `creates` makes this a no-op once the key exists, so an existing key is never
+# overwritten -- which would be an unrecoverable mistake.
+- name: Generate an SSH key pair if one does not already exist.
+  ansible.builtin.command:
+    cmd: >-
+      ssh-keygen -t {{ ssh_key_type }} -N ''
+      -C {{ ssh_key_comment | quote }}
+      -f {{ (ssh_key_path | expanduser) | quote }}
+    creates: "{{ ssh_key_path | expanduser }}"
+
+- name: Ensure the private key is only readable by you.
+  ansible.builtin.file:
+    path: "{{ ssh_key_path | expanduser }}"
+    mode: "0600"
+
+# AddKeysToAgent + UseKeychain means you unlock the key once and macOS remembers
+# it across reboots, rather than prompting on every git push.
+- name: Configure the SSH client.
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts.env.HOME }}/.ssh/config"
+    create: true
+    mode: "0600"
+    marker: "# {mark} ANSIBLE MANAGED: mac-dev-playbook"
+    block: |
+      Host *
+        AddKeysToAgent yes
+        UseKeychain yes
+        IdentityFile {{ ssh_key_path }}
+        IdentitiesOnly yes
+
+      Host github.com
+        HostName github.com
+        User git
+        IdentityFile {{ ssh_key_path }}
+
+- name: Add the key to the ssh-agent and the login keychain.
+  ansible.builtin.command:
+    cmd: "ssh-add --apple-use-keychain {{ (ssh_key_path | expanduser) | quote }}"
+  register: ssh_add
+  changed_when: "'Identity added' in ssh_add.stderr or 'Identity added' in ssh_add.stdout"
+  failed_when: false
+
+- name: Ensure github.com is a known host.
+  ansible.builtin.known_hosts:
+    name: github.com
+    key: "{{ lookup('ansible.builtin.pipe', 'ssh-keyscan -t ed25519 github.com') }}"
+    path: "{{ ansible_facts.env.HOME }}/.ssh/known_hosts"
+  failed_when: false
+
+- name: Upload the public key to GitHub.
+  when: ssh_upload_key_to_github | bool
+  block:
+    - name: Check whether the gh CLI is authenticated.
+      ansible.builtin.command: "{{ homebrew_bin }}/gh auth status"
+      register: gh_auth
+      changed_when: false
+      failed_when: false
+
+    - name: Add the SSH key to the GitHub account.
+      ansible.builtin.command:
+        cmd: >-
+          {{ homebrew_bin }}/gh ssh-key add {{ (ssh_key_path ~ '.pub') | expanduser | quote }}
+          --title {{ ssh_github_key_title | quote }}
+      register: gh_ssh_key
+      when: gh_auth.rc == 0
+      # gh errors when the key is already registered; that is a no-op, not a failure.
+      changed_when: gh_ssh_key.rc == 0
+      failed_when:
+        - gh_ssh_key.rc != 0
+        - "'already' not in (gh_ssh_key.stderr | default(''))"
+
+    - name: Explain how to finish SSH setup manually.
+      ansible.builtin.debug:
+        msg: >-
+          gh is not authenticated, so the SSH key was not uploaded. Run
+          `gh auth login`, then `ansible-playbook main.yml --tags ssh` -- or add
+          {{ ssh_key_path }}.pub to https://github.com/settings/keys by hand.
+      when: gh_auth.rc != 0

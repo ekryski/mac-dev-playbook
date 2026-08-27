@@ -1,0 +1,13 @@
+---
+profile: production
+
+exclude_paths:
+  - galaxy/
+  - .github/
+
+skip_list:
+  # Task filenames in this repo are area-based (homebrew.yml, ssh.yml), not roles.
+  - name[template]
+
+warn_list:
+  - experimental

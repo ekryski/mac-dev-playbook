@@ -1,0 +1,42 @@
+---
+# Homebrew's docker-compose installs itself as a CLI plugin, but only if this
+# directory exists and is linked. Without it `docker compose` is not found even
+# though the binary is installed.
+- name: Ensure the docker CLI plugin directory exists.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.docker/cli-plugins"
+    state: directory
+    mode: "0755"
+
+- name: Link Homebrew docker plugins into the docker CLI.
+  ansible.builtin.file:
+    src: "{{ homebrew_prefix }}/opt/{{ item }}/bin/{{ item }}"
+    dest: "{{ ansible_facts.env.HOME }}/.docker/cli-plugins/{{ item }}"
+    state: link
+    force: true
+  loop:
+    - docker-compose
+    - docker-buildx
+
+- name: Check whether Colima is already running.
+  ansible.builtin.command: "{{ homebrew_bin }}/colima status"
+  register: colima_status
+  changed_when: false
+  failed_when: false
+
+# vz is Apple's Virtualization.framework -- noticeably faster than qemu on Apple
+# Silicon, and the only VM type that supports Rosetta for amd64 images.
+- name: Start Colima.
+  ansible.builtin.command:
+    cmd: >-
+      {{ homebrew_bin }}/colima start
+      --cpu {{ colima_cpus }}
+      --memory {{ colima_memory_gb }}
+      --disk {{ colima_disk_gb }}
+      --vm-type {{ colima_vm_type }}
+      {{ '--vz-rosetta' if (colima_rosetta | bool and colima_vm_type == 'vz') else '' }}
+  when:
+    - colima_start | bool
+    # `colima status` exits non-zero when the VM is stopped or does not exist.
+    - colima_status.rc != 0
+  changed_when: true

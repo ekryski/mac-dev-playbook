@@ -1,0 +1,8 @@
+---
+collections:
+  # Provides homebrew, homebrew_cask, homebrew_tap, homebrew_services, mas,
+  # osx_defaults and git_config. All of the heavy lifting lives here.
+  - name: community.general
+    version: ">=13.0.0"
+  - name: ansible.posix
+    version: ">=2.0.0"

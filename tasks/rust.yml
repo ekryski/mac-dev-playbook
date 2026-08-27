@@ -1,0 +1,29 @@
+---
+# Homebrew's `rustup` formula provides the toolchain installer. Note that the
+# `rust` formula is deliberately NOT installed -- having both puts two rustc
+# binaries on PATH and cargo picks the wrong one.
+- name: Check for an existing rustup toolchain.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.env.HOME }}/.rustup/settings.toml"
+  register: rustup_settings
+
+- name: Initialise rustup.
+  ansible.builtin.command:
+    cmd: >-
+      {{ homebrew_bin }}/rustup-init -y --no-modify-path
+      --default-toolchain {{ rustup_default_toolchain }}
+  when: not rustup_settings.stat.exists
+  changed_when: true
+
+- name: Set the default toolchain.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/rustup default {{ rustup_default_toolchain }}"
+  register: rustup_default
+  changed_when: "'unchanged' not in rustup_default.stdout"
+
+- name: Install rustup components.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/rustup component add {{ item }}"
+  loop: "{{ rustup_components }}"
+  register: rustup_component
+  changed_when: "'installing' in rustup_component.stdout"

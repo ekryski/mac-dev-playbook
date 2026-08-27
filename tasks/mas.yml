@@ -1,0 +1,30 @@
+---
+# mas needs the App Store app to have been signed in to at least once. There is
+# no reliable programmatic way to check that on modern macOS (`mas account` was
+# removed), so we attempt the install and report clearly if it fails rather than
+# aborting the whole run over an optional app.
+- name: Install Mac App Store applications.
+  community.general.mas:
+    id: "{{ mas_installed_apps | map(attribute='id') | list }}"
+    state: present
+  register: mas_install
+  failed_when: false
+  when: mas_installed_apps | length > 0
+
+- name: Report Mac App Store failures.
+  ansible.builtin.debug:
+    msg: >-
+      Could not install one or more Mac App Store apps
+      ({{ mas_installed_apps | map(attribute='name') | join(', ') }}).
+      Open App Store.app, sign in, then re-run with
+      `ansible-playbook main.yml --tags mas`.
+      Underlying error: {{ mas_install.msg | default('unknown') }}
+  when:
+    - mas_install is defined
+    - mas_install.failed | default(false)
+
+- name: Upgrade all Mac App Store applications.
+  community.general.mas:
+    upgrade_all: true
+  when: mas_upgrade_all | bool
+  tags: ["mas-upgrade"]

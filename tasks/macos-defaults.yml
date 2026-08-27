@@ -1,0 +1,23 @@
+---
+- name: Ensure the screenshot directory exists.
+  ansible.builtin.file:
+    path: "{{ macos_screenshot_dir | expanduser }}"
+    state: directory
+    mode: "0755"
+
+- name: Apply macOS system preferences.
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  loop: "{{ macos_defaults }}"
+  loop_control:
+    label: "{{ item.domain }} {{ item.key }}"
+  notify:
+    - Restart Dock
+    - Restart Finder
+
+- name: Flush the preference cache so the changes are picked up.
+  ansible.builtin.meta: flush_handlers

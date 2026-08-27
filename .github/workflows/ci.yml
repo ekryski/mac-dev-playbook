@@ -1,0 +1,44 @@
+---
+name: CI
+
+"on":
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    # Weekly, so a collection or module deprecation surfaces before a rebuild day.
+    - cron: "0 14 * * 1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Ansible and linters.
+        run: pip install ansible ansible-lint yamllint
+
+      - name: Install collections.
+        run: ansible-galaxy install -r requirements.yml
+
+      - name: yamllint
+        run: yamllint .
+
+      - name: ansible-lint
+        run: ansible-lint
+
+      - name: Syntax check
+        run: ansible-playbook main.yml --syntax-check
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the bootstrap script.
+        run: shellcheck scripts/bootstrap.sh

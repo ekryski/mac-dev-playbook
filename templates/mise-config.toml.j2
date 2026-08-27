@@ -1,0 +1,14 @@
+# Managed by mac-dev-playbook -- edit `mise_tools` in config.yml, not this file.
+#
+# These are the global fallback versions. Per-project versions still win: drop a
+# .mise.toml or .tool-versions in a project root and mise switches on cd.
+
+[tools]
+{% for tool, version in mise_tools.items() %}
+{{ tool }} = "{{ version }}"
+{% endfor %}
+
+[settings]
+# Honour the version files other tools already write (.node-version,
+# .ruby-version, go.mod) so existing projects work without a .mise.toml.
+idiomatic_version_file_enable_tools = [{{ mise_tools.keys() | map('to_json') | join(', ') }}]

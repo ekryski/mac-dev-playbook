@@ -1,0 +1,40 @@
+---
+# The dotfiles .gitconfig is checked into a public repo, so identity lives in
+# ~/.gitconfig.local instead, which .gitconfig pulls in via [include].
+- name: Write machine-local git identity to ~/.gitconfig.local.
+  community.general.git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: file
+    file: "{{ ansible_facts.env.HOME }}/.gitconfig.local"
+  loop:
+    - { name: "user.name", value: "{{ git_user_name }}" }
+    - { name: "user.email", value: "{{ git_user_email }}" }
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Configure commit signing.
+  community.general.git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    scope: file
+    file: "{{ ansible_facts.env.HOME }}/.gitconfig.local"
+  loop:
+    - { name: "user.signingkey", value: "{{ git_signing_key }}" }
+    - { name: "commit.gpgsign", value: "true" }
+  loop_control:
+    label: "{{ item.name }}"
+  when: git_signing_key | length > 0
+
+- name: Ensure ~/.githooks exists.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.githooks"
+    state: directory
+    mode: "0755"
+
+- name: Set up git credential helper for GitHub via gh.
+  community.general.git_config:
+    name: "credential.https://github.com.helper"
+    value: "!{{ homebrew_bin }}/gh auth git-credential"
+    scope: file
+    file: "{{ ansible_facts.env.HOME }}/.gitconfig.local"
