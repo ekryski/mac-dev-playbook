@@ -37,7 +37,7 @@ git_signing_key: ""
 # Dotfiles
 # ---------------------------------------------------------------------------
 dotfiles_repo: "https://github.com/ekryski/dotfiles.git"
-dotfiles_repo_version: "master"
+dotfiles_repo_version: "main"
 dotfiles_repo_dest: "~/Development/personal/dotfiles"
 
 # Files symlinked from the dotfiles repo into place. `src` is relative to the
