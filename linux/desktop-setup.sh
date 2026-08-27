@@ -87,6 +87,10 @@ die()  { printf '%serror:%s %s\n' "$C_RED" "$C_OFF" "$*" >&2; exit 1; }
 
 DRY_RUN=false
 
+# Set by step_nordvpn when it adds you to the nordvpn group, so the closing
+# checklist only mentions logging out when that actually happened.
+NORDVPN_GROUP_ADDED=false
+
 # Echo a command in dry-run mode, otherwise run it. Every mutating command in
 # this script goes through here so --dry-run is actually trustworthy.
 run() {
@@ -285,7 +289,51 @@ EOF"
     run_sh "ssh-keyscan -t ed25519 github.com >> '$HOME/.ssh/known_hosts' 2>/dev/null"
   fi
 
+  ssh_upload_key_to_github
+
   ok "SSH configured"
+}
+
+# Register the public key with GitHub, but only when gh is already signed in.
+# On a brand new machine it usually is not, which is the whole reason
+# bootstrap.sh exists: it authenticates gh first, then re-runs this step.
+ssh_upload_key_to_github() {
+  local pub="${SSH_KEY_PATH}.pub"
+
+  if ! have gh; then
+    skip "gh not installed yet -- key not uploaded"
+    return 0
+  fi
+
+  if ! gh auth status >/dev/null 2>&1; then
+    skip "gh not signed in -- key not uploaded (run: gh auth login)"
+    return 0
+  fi
+
+  if [[ "$DRY_RUN" == false && ! -f "$pub" ]]; then
+    skip "no public key at $pub"
+    return 0
+  fi
+
+  # Compare on the base64 blob: gh rewrites the comment, so the full line and
+  # the title are both unreliable for detecting an already-registered key.
+  if [[ "$DRY_RUN" == false ]]; then
+    local blob
+    blob="$(awk '{print $2}' "$pub")"
+    if [[ -n "$blob" ]] && gh ssh-key list 2>/dev/null | grep -qF "$blob"; then
+      skip "key is already on your GitHub account"
+      return 0
+    fi
+  fi
+
+  # gh exits non-zero if the key is already registered under another title;
+  # that is a no-op, not a failure worth aborting the whole run over.
+  local title="${HOSTNAME:-$(uname -n 2>/dev/null)}"
+  if run gh ssh-key add "$pub" --title "${title:-linux}"; then
+    ok "public key added to your GitHub account"
+  else
+    warn "Could not add the key to GitHub. Add it by hand at https://github.com/settings/keys"
+  fi
 }
 
 step_gpg() {
@@ -492,6 +540,7 @@ gpgkey=${NORDVPN_KEY_URL}"
     skip "already in the nordvpn group"
   else
     run sudo usermod -aG nordvpn "$USER"
+    NORDVPN_GROUP_ADDED=true
     warn "Added you to the 'nordvpn' group -- log out and back in before using it."
   fi
 
@@ -546,42 +595,67 @@ step_uv() {
 # Post-run summary
 # ---------------------------------------------------------------------------
 
+# Build the closing checklist from what is actually still outstanding, rather
+# than printing a fixed list. Running under bootstrap.sh, gh and the SSH key are
+# already done by this point, and telling the user to redo them is just noise.
 summary() {
   local pubkey="${SSH_KEY_PATH}.pub"
+  local -a todo=()
 
-  cat <<EOF
+  todo+=("Restart your shell so the new PATH and mise hook load:
+       exec \$SHELL -l")
 
-${C_GREEN}Done.${C_OFF} ${DISTRO_NAME}
-
-Still needs you:
-
-  1. Add ~/.local/bin to PATH if it isn't already, then restart your shell:
-       export PATH="\$HOME/.local/bin:\$PATH"
-       eval "\$(mise activate bash)"    # or zsh
-
-  2. Sign in to 1Password, and to gh:
-       gh auth login
-
-  3. Add your SSH key to GitHub:
-       gh ssh-key add ${pubkey} --title "\$(hostname)"
-EOF
-
-  if [[ -f "$pubkey" ]]; then
-    printf '\n     Your public key:\n     %s\n' "$(cat "$pubkey")"
+  if ! (have gh && gh auth status >/dev/null 2>&1); then
+    todo+=("Sign in to GitHub:
+       gh auth login")
   fi
 
-  cat <<EOF
+  # Only nag about the key if it exists locally but is not on the account.
+  if [[ -f "$pubkey" ]]; then
+    local blob="" on_github=false
+    blob="$(awk '{print $2}' "$pubkey" 2>/dev/null || true)"
+    if have gh && gh auth status >/dev/null 2>&1 && [[ -n "$blob" ]] \
+      && gh ssh-key list 2>/dev/null | grep -qF "$blob"; then
+      on_github=true
+    fi
+    if [[ "$on_github" == false ]]; then
+      todo+=("Add your SSH key to GitHub:
+       gh ssh-key add ${pubkey} --title \"\$(hostname)\"")
+    fi
+  fi
 
-  4. Import your GPG signing key (export it from the machine that has it):
+  if ! gpg --list-secret-keys >/dev/null 2>&1 || [[ -z "$(gpg --list-secret-keys 2>/dev/null)" ]]; then
+    todo+=("Import your GPG signing key from the machine that has it:
        gpg --import private.key
-       git config --global user.signingkey <KEY_ID>
+       git config --global user.signingkey <KEY_ID>")
+  fi
 
-  5. Log in to NordVPN:
-       nordvpn login
+  if have op && ! op account list >/dev/null 2>&1; then
+    todo+=("Sign in to 1Password (app settings > Developer, or: op account add)")
+  fi
 
-  6. Log out and back in for the 'nordvpn' group to take effect.
+  if have nordvpn; then
+    todo+=("Log in to NordVPN:
+       nordvpn login")
+  fi
 
-EOF
+  if [[ "$NORDVPN_GROUP_ADDED" == true ]]; then
+    todo+=("Log out and back in for the 'nordvpn' group to take effect.")
+  fi
+
+  printf '\n%sDone.%s %s\n' "$C_GREEN" "$C_OFF" "$DISTRO_NAME"
+
+  if [[ ${#todo[@]} -eq 0 ]]; then
+    printf '\nNothing left to do.\n\n'
+    return 0
+  fi
+
+  printf '\nStill needs you:\n\n'
+  local i=1 item
+  for item in "${todo[@]}"; do
+    printf '  %d. %s\n\n' "$i" "$item"
+    i=$((i + 1))
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -667,7 +741,12 @@ main() {
     "step_${step}"
   done
 
-  summary
+  # The closing checklist describes the machine as a whole, so it only makes
+  # sense after a full run. A targeted `--only` run (which is how bootstrap.sh
+  # drives this script) would otherwise print advice about steps it never ran.
+  if [[ -z "$only" ]]; then
+    summary
+  fi
 }
 
 main "$@"

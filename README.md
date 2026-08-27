@@ -7,8 +7,14 @@ machine: Homebrew, the apps I use, language runtimes, an SSH key, my
 Tested on **macOS 26 (Tahoe)**, Apple Silicon, **ansible-core 2.21**.
 Originally forked from [geerlingguy/mac-dev-playbook](https://github.com/geerlingguy/mac-dev-playbook).
 
-> **On Linux?** There's a much smaller bash script for Fedora and Ubuntu
-> desktops in [`linux/`](linux/) — see [linux/README.md](linux/README.md).
+> **On Linux?** There's a much smaller bash setup for Fedora and Ubuntu
+> desktops in [`linux/`](linux/). On a machine with nothing on it:
+>
+> ```bash
+> bash -c "$(curl -fsSL https://raw.githubusercontent.com/ekryski/mac-dev-playbook/main/linux/bootstrap.sh)"
+> ```
+>
+> See [linux/README.md](linux/README.md).
 
 ## Quick start
 
