@@ -1,0 +1,121 @@
+---
+- name: Configure this Mac for development
+  hosts: all
+  connection: local
+  gather_facts: true
+
+  vars_files:
+    - default.config.yml
+
+  pre_tasks:
+    - name: Load per-machine overrides from config.yml.
+      ansible.builtin.include_vars: config.yml
+      when: lookup('ansible.builtin.fileglob', 'config.yml', wantlist=True) | length > 0
+      tags: ["always"]
+
+    - name: Verify we are on macOS.
+      ansible.builtin.assert:
+        that: ansible_facts.system == 'Darwin'
+        fail_msg: >-
+          This playbook only configures macOS. Detected {{ ansible_facts.system }}.
+      tags: ["always"]
+
+    # Homebrew moved to /opt/homebrew on Apple Silicon. Everything downstream
+    # (brew binary path, keg-only formula paths, shell init) keys off this.
+    - name: Determine the Homebrew prefix for this architecture.
+      ansible.builtin.set_fact:
+        homebrew_prefix: "{{ '/opt/homebrew' if ansible_facts.architecture == 'arm64' else '/usr/local' }}"
+      tags: ["always"]
+
+    - name: Set derived Homebrew paths.
+      ansible.builtin.set_fact:
+        homebrew_bin: "{{ homebrew_prefix }}/bin"
+        homebrew_brew: "{{ homebrew_prefix }}/bin/brew"
+      tags: ["always"]
+
+  tasks:
+    - name: Xcode and Command Line Tools.
+      ansible.builtin.import_tasks: tasks/xcode.yml
+      when: configure_xcode | bool
+      tags: ["xcode"]
+
+    - name: Homebrew formulae and casks.
+      ansible.builtin.import_tasks: tasks/homebrew.yml
+      when: configure_homebrew | bool
+      tags: ["homebrew"]
+
+    - name: Mac App Store applications.
+      ansible.builtin.import_tasks: tasks/mas.yml
+      when: configure_mas | bool
+      tags: ["mas"]
+
+    - name: Dotfiles.
+      ansible.builtin.import_tasks: tasks/dotfiles.yml
+      when: configure_dotfiles | bool
+      tags: ["dotfiles"]
+
+    - name: Git configuration.
+      ansible.builtin.import_tasks: tasks/git.yml
+      when: configure_git | bool
+      tags: ["git"]
+
+    - name: SSH key.
+      ansible.builtin.import_tasks: tasks/ssh.yml
+      when: configure_ssh | bool
+      tags: ["ssh"]
+
+    - name: Language runtimes via mise.
+      ansible.builtin.import_tasks: tasks/mise.yml
+      when: configure_mise | bool
+      tags: ["mise", "languages"]
+
+    - name: Python via uv.
+      ansible.builtin.import_tasks: tasks/python.yml
+      when: configure_python | bool
+      tags: ["python", "languages"]
+
+    - name: Rust via rustup.
+      ansible.builtin.import_tasks: tasks/rust.yml
+      when: configure_rust | bool
+      tags: ["rust", "languages"]
+
+    - name: Docker and Colima.
+      ansible.builtin.import_tasks: tasks/docker.yml
+      when: configure_docker | bool
+      tags: ["docker"]
+
+    - name: Background services.
+      ansible.builtin.import_tasks: tasks/services.yml
+      when: configure_services | bool
+      tags: ["services"]
+
+    - name: Apply macOS system preferences.
+      ansible.builtin.import_tasks: tasks/macos-defaults.yml
+      when: configure_macos_defaults | bool
+      tags: ["macos-defaults", "defaults"]
+
+  handlers:
+    # Most `defaults write` changes only show up once the owning process is
+    # restarted. failed_when: false because killall exits 1 if it is not running.
+    - name: Restart Dock
+      ansible.builtin.command: killall Dock
+      changed_when: true
+      failed_when: false
+
+    - name: Restart Finder
+      ansible.builtin.command: killall Finder
+      changed_when: true
+      failed_when: false
+
+  post_tasks:
+    - name: Summarise anything that still needs a human.
+      ansible.builtin.debug:
+        msg: "{{ manual_steps }}"
+      vars:
+        manual_steps:
+          - "Restart your shell (or `exec zsh`) to pick up the new environment."
+          - "Copy your secrets into ~/.zshrc.local -- see .zshrc.local.example in the dotfiles repo."
+          - "Sign in to 1Password, Slack, Linear, Discord, Spotify and Little Snitch."
+          - "Little Snitch needs a manual approval in System Settings > Privacy & Security > Network Extensions."
+          - "Some macOS preferences only take effect after a logout or restart."
+      tags: ["always"]

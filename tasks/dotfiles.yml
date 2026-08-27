@@ -1,0 +1,68 @@
+---
+- name: Ensure the dotfiles repository is cloned.
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo }}"
+    dest: "{{ dotfiles_repo_dest | expanduser }}"
+    version: "{{ dotfiles_repo_version }}"
+    # Never clobber local work in progress -- this repo is one you edit.
+    update: false
+    accept_hostkey: true
+
+- name: Inspect what is currently at each dotfile destination.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.env.HOME }}/{{ item.dest }}"
+  register: dotfiles_existing
+  loop: "{{ dotfiles_links }}"
+  loop_control:
+    label: "~/{{ item.dest }}"
+
+- name: Ensure the backup directory exists.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.dotfiles-backup"
+    state: directory
+    mode: "0700"
+
+# Anything real (not already a symlink) gets moved aside rather than deleted, so
+# a first run on a machine with existing config is recoverable.
+- name: Back up existing files that are not already symlinks.
+  ansible.builtin.command:
+    cmd: >-
+      mv {{ (ansible_facts.env.HOME ~ '/' ~ item.item.dest) | quote }}
+      {{ (ansible_facts.env.HOME ~ '/.dotfiles-backup/' ~ (item.item.dest | basename)) | quote }}
+    removes: "{{ ansible_facts.env.HOME }}/{{ item.item.dest }}"
+  loop: "{{ dotfiles_existing.results }}"
+  loop_control:
+    label: "~/{{ item.item.dest }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+
+- name: Ensure parent directories exist for nested dotfiles.
+  ansible.builtin.file:
+    path: "{{ (ansible_facts.env.HOME ~ '/' ~ item.dest) | dirname }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ dotfiles_links }}"
+  loop_control:
+    label: "{{ ('~/' ~ item.dest) | dirname }}"
+  when: "'/' in item.dest"
+
+- name: Link dotfiles into the home directory.
+  ansible.builtin.file:
+    src: "{{ dotfiles_repo_dest | expanduser }}/{{ item.src }}"
+    dest: "{{ ansible_facts.env.HOME }}/{{ item.dest }}"
+    state: link
+    force: true
+  loop: "{{ dotfiles_links }}"
+  loop_control:
+    label: "~/{{ item.dest }} -> {{ item.src }}"
+
+# Sourced by .zshrc when present. Machine-local secrets and overrides live here
+# so they never end up in the dotfiles repo.
+- name: Seed ~/.zshrc.local if it does not exist.
+  ansible.builtin.copy:
+    src: "{{ dotfiles_repo_dest | expanduser }}/.zshrc.local.example"
+    dest: "{{ ansible_facts.env.HOME }}/.zshrc.local"
+    mode: "0600"
+    force: false
+    remote_src: true

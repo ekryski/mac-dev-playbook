@@ -1,0 +1,19 @@
+---
+# Databases are installed by the homebrew task; this only decides which ones run
+# in the background. Everything is off by default -- see homebrew_services_started.
+- name: Start configured Homebrew services.
+  community.general.homebrew_services:
+    name: "{{ item }}"
+    state: present
+    path: "{{ homebrew_bin }}"
+  loop: "{{ homebrew_services_started }}"
+  when: homebrew_services_started | length > 0
+
+# postgresql@18 is keg-only, so psql/pg_dump/createdb are not linked into
+# {{ homebrew_prefix }}/bin. The dotfiles add the keg's bin directory to PATH.
+- name: Report how to reach the keg-only Postgres binaries.
+  ansible.builtin.debug:
+    msg: >-
+      Postgres is keg-only. Its binaries live in
+      {{ homebrew_prefix }}/opt/postgresql@18/bin, which the dotfiles put on PATH.
+      Start it with `brew services start postgresql@18`.

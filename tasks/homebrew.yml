@@ -1,0 +1,78 @@
+---
+- name: Check whether Homebrew is installed.
+  ansible.builtin.stat:
+    path: "{{ homebrew_brew }}"
+  register: homebrew_binary
+
+# Homebrew's own installer is the only supported way to bootstrap it -- the old
+# "git clone into /usr/local" approach has not worked for years.
+- name: Install Homebrew.
+  ansible.builtin.shell:
+    cmd: >-
+      /bin/bash -c "$(curl -fsSL
+      https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  environment:
+    NONINTERACTIVE: "1"
+  when: not homebrew_binary.stat.exists
+  changed_when: true
+
+- name: Ensure configured taps are tapped.
+  community.general.homebrew_tap:
+    name: "{{ homebrew_taps }}"
+    state: present
+    path: "{{ homebrew_bin }}"
+  when: homebrew_taps | length > 0
+
+# Homebrew 6 will not load a third-party tap's formulae until the tap is
+# trusted, and there is no --dry-run, so check the JSON state first.
+- name: Read the current Homebrew trust state.
+  ansible.builtin.command: "{{ homebrew_brew }} trust --json v1"
+  register: homebrew_trust_state
+  changed_when: false
+  when: homebrew_trusted_taps | length > 0
+
+- name: Trust third-party taps.
+  ansible.builtin.command: "{{ homebrew_brew }} trust --tap {{ item }}"
+  loop: "{{ homebrew_trusted_taps }}"
+  when:
+    - homebrew_trusted_taps | length > 0
+    - item not in (homebrew_trust_state.stdout | from_json).taps
+  changed_when: true
+
+# Passing the whole list in one call lets brew resolve dependencies once
+# instead of shelling out per formula.
+- name: Install Homebrew formulae.
+  community.general.homebrew:
+    name: "{{ homebrew_formulae }}"
+    state: present
+    path: "{{ homebrew_bin }}"
+  when: homebrew_formulae | length > 0
+
+# accept_external_apps stops the run from blowing up when an app was already
+# dragged into /Applications by hand (very common for Cursor, Chrome, Slack).
+- name: Install Homebrew casks.
+  community.general.homebrew_cask:
+    name: "{{ homebrew_casks }}"
+    state: present
+    path: "{{ homebrew_bin }}"
+    accept_external_apps: true
+    install_options: "appdir={{ homebrew_cask_appdir }}"
+  when: homebrew_casks | length > 0
+
+- name: Upgrade all Homebrew formulae.
+  community.general.homebrew:
+    update_homebrew: true
+    upgrade_all: true
+    path: "{{ homebrew_bin }}"
+  when: homebrew_upgrade_all | bool
+  tags: ["homebrew-upgrade"]
+
+# `greedy` also upgrades casks that self-update, which otherwise drift and
+# leave brew reporting a stale version forever.
+- name: Upgrade all Homebrew casks.
+  community.general.homebrew_cask:
+    upgrade_all: true
+    greedy: true
+    path: "{{ homebrew_bin }}"
+  when: homebrew_upgrade_all | bool
+  tags: ["homebrew-upgrade"]

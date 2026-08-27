@@ -1,0 +1,48 @@
+---
+# mise is the single version manager for node, ruby and go. Writing the config
+# file declaratively (rather than shelling out to `mise use`) keeps the desired
+# state in this repo and makes the task idempotent for free.
+- name: Ensure the mise config directory exists.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.config/mise"
+    state: directory
+    mode: "0755"
+
+- name: Write the global mise configuration.
+  ansible.builtin.template:
+    src: mise-config.toml.j2
+    dest: "{{ ansible_facts.env.HOME }}/.config/mise/config.toml"
+    mode: "0644"
+  register: mise_config
+
+# Ruby is compiled from source, so ruby-build needs to find Homebrew's OpenSSL
+# and libyaml rather than the system ones.
+- name: Install the configured mise tools.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/mise install --yes"
+  environment:
+    MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
+    RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
+    PKG_CONFIG_PATH: "{{ homebrew_prefix }}/opt/libyaml/lib/pkgconfig:{{ homebrew_prefix }}/opt/openssl@3/lib/pkgconfig"
+  register: mise_install
+  changed_when: "'Installing' in mise_install.stdout or 'installed' in mise_install.stdout"
+
+- name: Show the resolved tool versions.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/mise list --current"
+  register: mise_list
+  changed_when: false
+
+- name: Report the active runtimes.
+  ansible.builtin.debug:
+    msg: "{{ mise_list.stdout_lines }}"
+
+# Deliberately routed through `mise exec` so packages land in the active node
+# installation rather than whatever npm happens to be first on PATH.
+- name: Install global npm packages.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/mise exec -- npm install --global {{ item }}"
+  loop: "{{ npm_global_packages }}"
+  register: npm_global
+  changed_when: "'added' in npm_global.stdout or 'changed' in npm_global.stdout"
+  when: npm_global_packages | length > 0

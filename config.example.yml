@@ -1,0 +1,40 @@
+---
+# Per-machine overrides. Copy to config.yml (gitignored) and change what you
+# need -- anything not listed here falls back to default.config.yml.
+
+# --- identity -------------------------------------------------------------
+# git_user_name: "Eric Kryski"
+# git_user_email: "599019+ekryski@users.noreply.github.com"
+# git_signing_key: "0FBAF171BF8701DF"
+
+# --- skip whole sections --------------------------------------------------
+# configure_mas: false            # e.g. on a machine not signed in to the App Store
+# configure_macos_defaults: false
+
+# --- add machine-specific packages ---------------------------------------
+# Note: these REPLACE the defaults rather than extending them, so copy the list
+# from default.config.yml and edit it if you only want to add one thing.
+# homebrew_casks:
+#   - ghostty
+#   - cursor
+#   - figma
+
+# --- run databases in the background --------------------------------------
+# homebrew_services_started:
+#   - postgresql@18
+#   - redis
+
+# --- language versions ----------------------------------------------------
+# mise_tools:
+#   node: "22"
+#   ruby: "3.4"
+#   go: "latest"
+#   bun: "latest"
+
+# uv_python_versions:
+#   - "3.13"
+
+# --- colima sizing --------------------------------------------------------
+# colima_cpus: 8
+# colima_memory_gb: 16
+# colima_start: false

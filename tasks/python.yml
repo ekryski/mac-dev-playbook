@@ -1,0 +1,41 @@
+---
+# uv replaces pyenv + pip + virtualenv + pipx. It downloads standalone CPython
+# builds, so no compiling and no dependency on the system python.
+# --default on the first version creates the bare `python` and `python3`
+# symlinks in ~/.local/bin; without it only versioned names (python3.14) exist.
+- name: Install the configured Python interpreters.
+  ansible.builtin.command:
+    cmd: >-
+      {{ homebrew_bin }}/uv python install {{ item }}
+      {{ '--default' if item == (uv_python_versions | first) else '' }}
+  loop: "{{ uv_python_versions }}"
+  register: uv_python_install
+  changed_when: "'Installed' in uv_python_install.stderr or 'Installed' in uv_python_install.stdout"
+
+# Writes ~/.python-version, which every `uv run` / `uv venv` outside a project
+# falls back to.
+- name: Pin the default Python version.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/uv python pin {{ uv_python_versions | first }}"
+    chdir: "{{ ansible_facts.env.HOME }}"
+    creates: "{{ ansible_facts.env.HOME }}/.python-version"
+  when: uv_python_versions | length > 0
+
+# Each tool lands in its own isolated environment under ~/.local/share/uv/tools
+# and is exposed on PATH via ~/.local/bin.
+- name: Install global Python CLI tools.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/uv tool install {{ item }}"
+  loop: "{{ uv_tools }}"
+  register: uv_tool_install
+  changed_when: "'Installed' in uv_tool_install.stderr or 'Installed' in uv_tool_install.stdout"
+  failed_when:
+    - uv_tool_install.rc != 0
+    - "'already installed' not in (uv_tool_install.stderr | default(''))"
+
+- name: Ensure uv's tool bin directory is on PATH.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/uv tool update-shell"
+  register: uv_update_shell
+  changed_when: "uv_update_shell.stdout | length > 0"
+  failed_when: false

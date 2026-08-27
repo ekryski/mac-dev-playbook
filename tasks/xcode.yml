@@ -1,0 +1,51 @@
+---
+# The Command Line Tools are a hard prerequisite: Homebrew, mise's Ruby
+# compilation and half of the formulae here need a working clang. The bootstrap
+# script installs them, so by the time Ansible runs this should just be a check.
+- name: Check whether the Command Line Tools are installed.
+  ansible.builtin.command: xcode-select --print-path
+  register: xcode_clt_path
+  changed_when: false
+  failed_when: false
+
+- name: Fail with instructions if the Command Line Tools are missing.
+  ansible.builtin.fail:
+    msg: >-
+      Xcode Command Line Tools are not installed. Run `xcode-select --install`,
+      wait for the installer to finish, then re-run this playbook.
+  when: xcode_clt_path.rc != 0
+
+- name: Check whether the full Xcode app is installed.
+  ansible.builtin.stat:
+    path: /Applications/Xcode.app
+  register: xcode_app
+
+# Everything below only applies once Xcode.app itself exists (installed by the
+# mas role, or by hand). A machine with just the CLT skips it all.
+- name: Configure the full Xcode installation.
+  when: xcode_app.stat.exists
+  block:
+    - name: Point xcode-select at Xcode.app.
+      ansible.builtin.command: xcode-select --switch /Applications/Xcode.app/Contents/Developer
+      become: true
+      changed_when: "'/Applications/Xcode.app' not in xcode_clt_path.stdout"
+
+    - name: Check whether the Xcode license has been accepted.
+      ansible.builtin.command: xcodebuild -checkFirstLaunchStatus
+      register: xcode_first_launch
+      changed_when: false
+      failed_when: false
+
+    - name: Accept the Xcode license.
+      ansible.builtin.command: xcodebuild -license accept
+      become: true
+      when: xcode_first_launch.rc != 0
+      changed_when: true
+
+    # Installs the bundled packages (simulators metadata, device support, etc.)
+    # that Xcode would otherwise prompt for on first launch.
+    - name: Run the Xcode first-launch tasks.
+      ansible.builtin.command: xcodebuild -runFirstLaunch
+      become: true
+      when: xcode_first_launch.rc != 0
+      changed_when: true

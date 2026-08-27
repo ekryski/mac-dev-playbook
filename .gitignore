@@ -1,2 +1,8 @@
-*.vagrant
 .DS_Store
+*.retry
+
+# Per-machine overrides. Copy config.example.yml to config.yml and edit.
+config.yml
+
+# Collections installed by `ansible-galaxy install -r requirements.yml`.
+galaxy/
