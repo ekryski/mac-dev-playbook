@@ -117,18 +117,18 @@ vouch for it.
 | Rust | rustup with clippy, rustfmt, rust-analyzer |
 | Containers | docker CLI + compose + buildx, Colima (`vz` + Rosetta) |
 | Databases | PostgreSQL 18, Redis, MongoDB Community, SQLite |
-| Editors | Cursor, vim |
+| Editors | Cursor, vim, Obsidian |
 | Terminal | Ghostty + JetBrains Mono Nerd Font |
 | Shell | zsh + oh-my-zsh, autosuggestions, syntax highlighting, fzf, zoxide |
-| CLIs | gh, 1Password CLI, ansible, pandoc, ffmpeg, mactop, mole, ripgrep, fd, bat, eza, jq, delta |
+| CLIs | Claude Code, gh, 1Password CLI, ansible, pandoc, ffmpeg, mactop, mole, ripgrep, fd, bat, eza, jq, delta |
 
 `nvm` is installed but not loaded — its shims conflict with mise's. The dotfiles
 carry a commented block to switch back if a project demands it.
 
 ### Applications
 
-Casks: Ghostty, Cursor, Brave, Google Chrome, Slack, Discord, Claude, Linear,
-1Password, Spotify, Screen Studio, Little Snitch.
+Casks: Ghostty, Cursor, Obsidian, Brave, Google Chrome, Slack, Discord, Claude,
+Claude Code, Linear, 1Password, Spotify, Screen Studio, Little Snitch.
 
 Mac App Store: Xcode, TestFlight, Pages, Numbers, Keynote.
 
