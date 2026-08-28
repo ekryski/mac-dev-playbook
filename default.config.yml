@@ -171,6 +171,9 @@ homebrew_casks:
   # --- terminal & editors ---
   - ghostty
   - cursor
+  # Obsidian's vault is plain markdown on disk, so nothing here manages notes --
+  # this only installs the app.
+  - obsidian
 
   # --- browsers ---
   - brave-browser
@@ -182,6 +185,9 @@ homebrew_casks:
 
   # --- productivity ---
   - claude                # Claude desktop app
+  # Stable channel, roughly a week behind. Swap for claude-code@latest to get
+  # releases as they ship. Neither cask self-updates: `brew upgrade` does it.
+  - claude-code           # Claude Code CLI
   - linear-linear
   - 1password
   - 1password-cli

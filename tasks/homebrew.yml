@@ -25,10 +25,14 @@
 
 # Homebrew 6 will not load a third-party tap's formulae until the tap is
 # trusted, and there is no --dry-run, so check the JSON state first.
+# check_mode: false because this only reads state. Without it, --check skips the
+# command, leaves stdout empty, and the from_json below fails the whole run --
+# which made `make dry-run` unusable on this tag.
 - name: Read the current Homebrew trust state.
   ansible.builtin.command: "{{ homebrew_brew }} trust --json v1"
   register: homebrew_trust_state
   changed_when: false
+  check_mode: false
   when: homebrew_trusted_taps | length > 0
 
 - name: Trust third-party taps.
@@ -36,7 +40,11 @@
   loop: "{{ homebrew_trusted_taps }}"
   when:
     - homebrew_trusted_taps | length > 0
-    - item not in (homebrew_trust_state.stdout | from_json).taps
+    # Defaulted so a skipped read (e.g. --tags that exclude it) degrades to
+    # "trust everything configured" rather than raising a template error.
+    - >-
+      item not in (homebrew_trust_state.stdout
+      | default('{"taps":[]}', true) | from_json).taps
   changed_when: true
 
 # Passing the whole list in one call lets brew resolve dependencies once
