@@ -74,6 +74,18 @@ jobs:
           chown tester /home/tester/desktop-setup.sh
           sudo -u tester -i ./desktop-setup.sh --dry-run
 
+      - name: Every advertised step is runnable.
+        run: |
+          cp linux/desktop-setup.sh /home/tester/
+          chown tester /home/tester/desktop-setup.sh
+          steps=$(sed -n 's/^readonly ALL_STEPS=(\(.*\))$/\1/p' linux/desktop-setup.sh)
+          test -n "$steps" || { echo "could not read ALL_STEPS"; exit 1; }
+          for s in $steps; do
+            echo "--- $s ---"
+            sudo -u tester -i ./desktop-setup.sh --only "$s" --dry-run >/dev/null \
+              || { echo "step '$s' failed in dry run"; exit 1; }
+          done
+
       - name: Reject an unknown step name.
         run: |
           cp linux/desktop-setup.sh /home/tester/

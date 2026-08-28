@@ -63,6 +63,7 @@ cd mac-dev-playbook/linux
 | `brave` | Brave browser | signed repo, `brave.com` |
 | `1password` | 1Password desktop app + `op` CLI (see [Architecture](#architecture)) | signed repo, `1password.com` |
 | `nordvpn` | NordVPN CLI + GUI | signed repo, `repo.nordvpn.com` |
+| `claude` | Claude Code CLI + the desktop app (see [Distribution](#distribution)) | signed repo, `downloads.claude.ai` |
 | `mise` | mise, then Node.js LTS | `mise.run` install script |
 | `uv` | uv, then Python 3.14 | `astral.sh` install script |
 
@@ -80,7 +81,21 @@ just the CLI, and says so — rather than asking for a package that doesn't exis
 and failing the whole transaction. Use the 1Password browser extension in Brave
 on those machines.
 
-Everything else — Brave, gh, NordVPN, mise, uv — has arm64 builds.
+Everything else — Brave, gh, NordVPN, Claude Code, mise, uv — has arm64 builds.
+
+## Distribution
+
+One gap on Fedora:
+
+**Claude Desktop is Debian-based only.** Anthropic's Linux desktop app is in
+beta and ships `.deb` packages for Ubuntu 22.04+ and Debian 12+ (amd64 and
+arm64); their docs list Fedora and RHEL as not yet supported, and there is no
+RPM. The `claude` step handles this: **Claude Code, the CLI, installs on both
+distros** from Anthropic's apt and dnf repos, and the desktop app is added only
+on Debian-based systems. On Fedora the script says so and carries on.
+
+The CLI runs the same engine, so nothing is really missing on Fedora but the
+GUI wrapper.
 
 ## The two scripts
 
@@ -121,12 +136,15 @@ are marked and only appended once.
 Worth knowing what you're trusting, since most of this comes from outside the
 distro:
 
-- **gh, Brave, 1Password, NordVPN** install from the vendor's own signed
-  package repository. Packages are GPG-verified by `apt`/`dnf` on every update.
+- **gh, Brave, 1Password, NordVPN, Claude** install from the vendor's own
+  signed package repository. Packages are GPG-verified by `apt`/`dnf` on every
+  update.
 - **Signing keys are fingerprint-checked after import**, and a mismatch aborts
   before the repository is added:
   1Password `3FEF9748469ADBE15DA7CA80AC2D62742012EA22`,
-  NordVPN `BC5480EFEC5C081CE5BCFBE26B219E535C964CA1`.
+  NordVPN `BC5480EFEC5C081CE5BCFBE26B219E535C964CA1`,
+  Anthropic `31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE` (one key signs both the
+  Claude Code and Claude Desktop repos, so one check covers both).
   On Debian/Ubuntu the script also installs 1Password's `debsig` policy, so the
   `.deb` itself is verified on top of the repo signature.
 - **NordVPN's repo is configured directly** rather than via either of the two
@@ -164,6 +182,7 @@ The script prints these, but in short:
    ```
 4. `nordvpn login`, and log out/in once so the `nordvpn` group takes effect.
 5. Sign in to 1Password.
+6. Sign in to Claude — run `claude` and it opens a browser to authenticate.
 
 ## Dotfiles
 
