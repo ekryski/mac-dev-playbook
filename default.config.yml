@@ -60,6 +60,9 @@ dotfiles_links:
   - { src: "config/ghostty", dest: ".config/ghostty" }
   - { src: "config/mise", dest: ".config/mise" }
 
+# Ghostty ships themes as files with spaces in the name (`ghostty +list-themes`).
+ghostty_theme: "Afterglow"
+
 # ---------------------------------------------------------------------------
 # SSH
 # ---------------------------------------------------------------------------

@@ -78,3 +78,17 @@
     mode: "0600"
     force: false
     remote_src: true
+
+# The linked Ghostty config may still have camelCase names from an older
+# checkout. Bundled themes is `Afterglow`.
+- name: Check for a Ghostty config.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.env.HOME }}/.config/ghostty/config"
+  register: ghostty_config
+
+- name: Use Ghostty's bundled Afterglow theme.
+  ansible.builtin.replace:
+    path: "{{ ansible_facts.env.HOME }}/.config/ghostty/config"
+    regexp: '^theme\s*=.*$'
+    replace: "theme = {{ ghostty_theme }}"
+  when: ghostty_config.stat.exists
