@@ -1,0 +1,91 @@
+---
+# Upload this machine's SSH key to GitHub. Expected order:
+#   1. SSH key already exists (tasks/ssh.yml, before Homebrew)
+#   2. gh is installed
+#   3. 1Password (app + CLI) is installed
+#   4. You sign in to 1Password and enable CLI integration
+#   5. gh auth refresh -h github.com -s admin:ssh_signing_key
+#   6. gh ssh-key add --title "{computer name} ssh key" {public key}
+#
+# Steps 4–5 need a browser and a TTY, so the playbook pauses with the exact
+# commands rather than driving the GUI. admin:public_key is included alongside
+# admin:ssh_signing_key because `gh ssh-key add` (authentication keys) needs it.
+- name: Install the GitHub CLI.
+  community.general.homebrew:
+    name: gh
+    state: present
+    path: "{{ homebrew_bin }}"
+
+- name: Install 1Password and the 1Password CLI.
+  community.general.homebrew_cask:
+    name:
+      - 1password
+      - 1password-cli
+    state: present
+    path: "{{ homebrew_bin }}"
+    accept_external_apps: true
+    install_options: "appdir={{ homebrew_cask_appdir }}"
+
+- name: Check whether the gh CLI is authenticated.
+  ansible.builtin.command: "{{ homebrew_bin }}/gh auth status"
+  register: gh_auth_status
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Pause for 1Password sign-in and GitHub CLI scopes.
+  ansible.builtin.pause:
+    prompt: |2
+
+      Sign in to 1Password, then grant gh the scopes to upload this SSH key.
+
+        1. Open 1Password and sign in to your account.
+        2. Settings → Developer → enable "Integrate with 1Password CLI".
+
+        3. If gh is not signed in (or its token is invalid):
+             gh auth login -h github.com
+
+        4. Grant the SSH key scopes (browser prompt):
+             gh auth refresh -h github.com -s admin:ssh_signing_key -s admin:public_key
+
+      After that, this playbook will run:
+        gh ssh-key add --title {{ ssh_github_key_title | quote }} {{ (ssh_key_path ~ '.pub') | expanduser | quote }}
+
+      Press Return when 1Password is signed in and the gh commands above have finished.
+  when:
+    - not ansible_check_mode
+    - gh_auth_status.rc != 0
+
+- name: Recheck whether the gh CLI is authenticated.
+  ansible.builtin.command: "{{ homebrew_bin }}/gh auth status"
+  register: gh_auth_recheck
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when:
+    - not ansible_check_mode
+    - gh_auth_status.rc != 0
+
+- name: Add the SSH key to the GitHub account.
+  ansible.builtin.command:
+    cmd: >-
+      {{ homebrew_bin }}/gh ssh-key add
+      --title {{ ssh_github_key_title | quote }}
+      {{ (ssh_key_path ~ '.pub') | expanduser | quote }}
+  register: gh_ssh_key
+  when: (gh_auth_recheck.rc | default(gh_auth_status.rc)) == 0
+  # gh errors when the key is already registered; that is a no-op, not a failure.
+  changed_when: gh_ssh_key.rc == 0
+  failed_when:
+    - gh_ssh_key.rc != 0
+    - "'already' not in (gh_ssh_key.stderr | default(''))"
+
+- name: Explain how to finish SSH setup manually.
+  ansible.builtin.debug:
+    msg: >-
+      gh is not authenticated, so the SSH key was not uploaded.
+      Sign in to 1Password, then run:
+      `gh auth login -h github.com`;
+      `gh auth refresh -h github.com -s admin:ssh_signing_key -s admin:public_key`;
+      `gh ssh-key add --title {{ ssh_github_key_title | quote }} {{ (ssh_key_path ~ '.pub') | expanduser | quote }}`.
+  when: (gh_auth_recheck.rc | default(gh_auth_status.rc)) != 0

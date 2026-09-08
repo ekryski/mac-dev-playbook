@@ -40,6 +40,11 @@ dotfiles_repo: "https://github.com/ekryski/dotfiles.git"
 dotfiles_repo_version: "main"
 dotfiles_repo_dest: "~/Development/personal/dotfiles"
 
+# Cloned rather than using the official installer, which would overwrite .zshrc.
+oh_my_zsh_repo: "https://github.com/ohmyzsh/ohmyzsh.git"
+oh_my_zsh_version: "master"
+oh_my_zsh_dest: "~/.oh-my-zsh"
+
 # Files symlinked from the dotfiles repo into place. `src` is relative to the
 # repo root, `dest` is relative to $HOME.
 dotfiles_links:
@@ -62,10 +67,10 @@ ssh_key_type: ed25519
 ssh_key_path: "~/.ssh/id_ed25519"
 ssh_key_comment: "{{ git_user_email }}"
 
-# Upload the generated public key to GitHub via `gh`. Silently skipped when the
-# gh CLI is not authenticated -- run `gh auth login` first to enable it.
+# Upload the public key to GitHub after Homebrew installs `gh` and 1Password.
+# The playbook pauses with the exact `gh auth` commands when gh is not signed in.
 ssh_upload_key_to_github: true
-ssh_github_key_title: "{{ ansible_facts.hostname }}"
+ssh_github_key_title: "{{ macos_computer_name }} ssh key"
 
 # ---------------------------------------------------------------------------
 # Homebrew

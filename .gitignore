@@ -6,3 +6,6 @@ config.yml
 
 # Collections installed by `ansible-galaxy install -r requirements.yml`.
 galaxy/
+
+# Ansible
+.ansible/

@@ -47,6 +47,8 @@
       | default('{"taps":[]}', true) | from_json).taps
   changed_when: true
 
+# Formulae (including `gh`) run before casks (including 1Password), which is
+# the order GitHub SSH upload depends on: key → gh → 1Password → gh auth.
 # Passing the whole list in one call lets brew resolve dependencies once
 # instead of shelling out per formula.
 - name: Install Homebrew formulae.

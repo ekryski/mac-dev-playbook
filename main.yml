@@ -33,16 +33,41 @@
         homebrew_brew: "{{ homebrew_prefix }}/bin/brew"
       tags: ["always"]
 
+    # System Settings → Sharing → Computer Name. Used as the GitHub SSH key title.
+    - name: Read the macOS computer name.
+      ansible.builtin.command: /usr/sbin/scutil --get ComputerName
+      register: macos_computer_name_cmd
+      changed_when: false
+      check_mode: false
+      tags: ["always"]
+
+    - name: Set the macOS computer name fact.
+      ansible.builtin.set_fact:
+        macos_computer_name: "{{ macos_computer_name_cmd.stdout }}"
+      tags: ["always"]
+
   tasks:
     - name: Xcode and Command Line Tools.
       ansible.builtin.import_tasks: tasks/xcode.yml
       when: configure_xcode | bool
       tags: ["xcode"]
 
+    - name: SSH key.
+      ansible.builtin.import_tasks: tasks/ssh.yml
+      when: configure_ssh | bool
+      tags: ["ssh"]
+
     - name: Homebrew formulae and casks.
       ansible.builtin.import_tasks: tasks/homebrew.yml
       when: configure_homebrew | bool
       tags: ["homebrew"]
+
+    - name: GitHub SSH key upload.
+      ansible.builtin.import_tasks: tasks/github-ssh.yml
+      when:
+        - configure_ssh | bool
+        - ssh_upload_key_to_github | bool
+      tags: ["ssh", "github"]
 
     - name: Mac App Store applications.
       ansible.builtin.import_tasks: tasks/mas.yml
@@ -58,11 +83,6 @@
       ansible.builtin.import_tasks: tasks/git.yml
       when: configure_git | bool
       tags: ["git"]
-
-    - name: SSH key.
-      ansible.builtin.import_tasks: tasks/ssh.yml
-      when: configure_ssh | bool
-      tags: ["ssh"]
 
     - name: Language runtimes via mise.
       ansible.builtin.import_tasks: tasks/mise.yml
@@ -115,7 +135,7 @@
         manual_steps:
           - "Restart your shell (or `exec zsh`) to pick up the new environment."
           - "Copy your secrets into ~/.zshrc.local -- see .zshrc.local.example in the dotfiles repo."
-          - "Sign in to 1Password, Slack, Linear, Discord, Spotify and Little Snitch."
+          - "Sign in to Slack, Linear, Discord, Spotify and Little Snitch."
           - "Little Snitch needs a manual approval in System Settings > Privacy & Security > Network Extensions."
           - "Some macOS preferences only take effect after a logout or restart."
       tags: ["always"]

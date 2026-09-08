@@ -54,33 +54,3 @@
     key: "{{ lookup('ansible.builtin.pipe', 'ssh-keyscan -t ed25519 github.com') }}"
     path: "{{ ansible_facts.env.HOME }}/.ssh/known_hosts"
   failed_when: false
-
-- name: Upload the public key to GitHub.
-  when: ssh_upload_key_to_github | bool
-  block:
-    - name: Check whether the gh CLI is authenticated.
-      ansible.builtin.command: "{{ homebrew_bin }}/gh auth status"
-      register: gh_auth
-      changed_when: false
-      failed_when: false
-
-    - name: Add the SSH key to the GitHub account.
-      ansible.builtin.command:
-        cmd: >-
-          {{ homebrew_bin }}/gh ssh-key add {{ (ssh_key_path ~ '.pub') | expanduser | quote }}
-          --title {{ ssh_github_key_title | quote }}
-      register: gh_ssh_key
-      when: gh_auth.rc == 0
-      # gh errors when the key is already registered; that is a no-op, not a failure.
-      changed_when: gh_ssh_key.rc == 0
-      failed_when:
-        - gh_ssh_key.rc != 0
-        - "'already' not in (gh_ssh_key.stderr | default(''))"
-
-    - name: Explain how to finish SSH setup manually.
-      ansible.builtin.debug:
-        msg: >-
-          gh is not authenticated, so the SSH key was not uploaded. Run
-          `gh auth login`, then `ansible-playbook main.yml --tags ssh` -- or add
-          {{ ssh_key_path }}.pub to https://github.com/settings/keys by hand.
-      when: gh_auth.rc != 0

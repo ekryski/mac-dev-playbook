@@ -52,9 +52,10 @@ make install
 | `xcode` | Verifies the Command Line Tools, accepts the Xcode license, runs first-launch |
 | `homebrew` | Taps, formulae and casks |
 | `mas` | Mac App Store apps (Xcode, TestFlight, Pages, Numbers, Keynote) |
-| `dotfiles` | Clones the dotfiles repo and symlinks it into `$HOME` |
+| `dotfiles` | oh-my-zsh, then clones the dotfiles repo and symlinks it into `$HOME` |
 | `git` | Writes identity and the `gh` credential helper to `~/.gitconfig.local` |
 | `ssh` | Generates an ed25519 key, configures the agent + keychain, uploads to GitHub |
+| `github` | Ensures `gh` + 1Password, pauses for sign-in, uploads the SSH key |
 | `mise` | node, ruby and go |
 | `python` | uv-managed interpreters and CLI tools |
 | `rust` | rustup toolchain and components |
@@ -150,11 +151,15 @@ Things Ansible genuinely can't do:
 2. **Little Snitch** needs approval in System Settings → Privacy & Security →
    Network Extensions, and a restart.
 3. **Full Disk Access / Accessibility** grants for the terminal and Screen Studio.
-4. **Sign in** to 1Password, Slack, Linear, Discord, Spotify, Cursor and Claude.
+4. **Sign in** to Slack, Linear, Discord, Spotify, Cursor and Claude.
 5. **`~/.zshrc.local`** — copy `.zshrc.local.example` from the dotfiles repo and
    fill in your tokens.
-6. **`gh auth login`** — run it before `--tags ssh` if you want the SSH key
-   uploaded to GitHub automatically.
+6. **1Password + `gh auth`** — the `ssh`/`github` tags pause with the commands
+   to sign in to 1Password, then:
+   `gh auth login -h github.com`,
+   `gh auth refresh -h github.com -s admin:ssh_signing_key -s admin:public_key`,
+   after which the playbook runs
+   `gh ssh-key add --title "{Computer Name} ssh key" ~/.ssh/id_ed25519.pub`.
 7. Some macOS defaults only apply after a logout or restart.
 
 ## Development

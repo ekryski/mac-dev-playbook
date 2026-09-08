@@ -1,4 +1,16 @@
 ---
+# .zshrc sources ~/.oh-my-zsh/oh-my-zsh.sh. The official installer also writes
+# a .zshrc, so clone the repo and leave our linked dotfiles alone. `gst` and
+# the rest of the git aliases come from the oh-my-zsh git plugin.
+- name: Install oh-my-zsh.
+  ansible.builtin.git:
+    repo: "{{ oh_my_zsh_repo }}"
+    dest: "{{ oh_my_zsh_dest | expanduser }}"
+    version: "{{ oh_my_zsh_version }}"
+    depth: 1
+    update: false
+    accept_hostkey: true
+
 - name: Ensure the dotfiles repository is cloned.
   ansible.builtin.git:
     repo: "{{ dotfiles_repo }}"
