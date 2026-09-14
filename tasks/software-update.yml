@@ -1,0 +1,26 @@
+---
+# These settings live in /Library/Preferences, so they need root. Current macOS
+# reads com.apple.SoftwareUpdate AutomaticallyInstallAppUpdates for App Store
+# app updates. When that key is absent, app updates install automatically,
+# which is how Xcode got replaced. Older releases read com.apple.commerce
+# AutoUpdate instead, so both are set.
+- name: Set the automatic update policy.
+  community.general.osx_defaults:
+    domain: "{{ item.domain }}"
+    key: "{{ item.key }}"
+    type: bool
+    value: "{{ item.value }}"
+    state: present
+  become: true
+  loop:
+    - domain: /Library/Preferences/com.apple.SoftwareUpdate
+      key: AutomaticallyInstallAppUpdates
+      value: "{{ software_update_install_app_updates }}"
+    - domain: /Library/Preferences/com.apple.commerce
+      key: AutoUpdate
+      value: "{{ software_update_install_app_updates }}"
+    - domain: /Library/Preferences/com.apple.SoftwareUpdate
+      key: AutomaticallyInstallMacOSUpdates
+      value: "{{ software_update_install_macos_updates }}"
+  loop_control:
+    label: "{{ item.domain | basename }} {{ item.key }}={{ item.value }}"
