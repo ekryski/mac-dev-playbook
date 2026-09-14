@@ -21,6 +21,7 @@ configure_rust: true
 configure_docker: true
 configure_services: true
 configure_macos_defaults: true
+configure_software_update: true
 
 # ---------------------------------------------------------------------------
 # Identity
@@ -135,6 +136,8 @@ homebrew_formulae:
   - ansible
   - ansible-lint
   - mas                   # Mac App Store CLI
+  - xcodes                # install specific Xcode versions side by side
+  - aria2                 # parallel downloads; xcodes uses it for much faster Xcode installs
 
   # --- media / docs ---
   - pandoc
@@ -228,6 +231,16 @@ mas_installed_apps:
   - { id: 409183694, name: "Keynote" }
 
 mas_upgrade_all: false
+
+# ---------------------------------------------------------------------------
+# Software updates
+#
+# Unattended installs swap toolchains out from under you: an App Store update
+# replaced Xcode 26.6 with 27.0 without anyone choosing it, and macOS offers
+# major upgrades the same way. Checking for updates stays on and security
+# responses are left alone; only automatic *installs* are turned off here.
+software_update_install_app_updates: false
+software_update_install_macos_updates: false
 
 # ---------------------------------------------------------------------------
 # Language runtimes (mise)

@@ -114,6 +114,11 @@
       when: configure_macos_defaults | bool
       tags: ["macos-defaults", "defaults"]
 
+    - name: Set the automatic software update policy.
+      ansible.builtin.import_tasks: tasks/software-update.yml
+      when: configure_software_update | bool
+      tags: ["software-update", "defaults"]
+
   handlers:
     # Most `defaults write` changes only show up once the owning process is
     # restarted. failed_when: false because killall exits 1 if it is not running.
