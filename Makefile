@@ -22,7 +22,7 @@ check: ## Syntax-check the playbook.
 lint: ## Lint the playbook.
 	ansible-lint
 
-update: deps ## Upgrade every Homebrew formula, cask and App Store app.
+update: deps ## Upgrade every Homebrew formula, cask, App Store app and runtime.
 	ansible-playbook main.yml --ask-become-pass \
-		-e homebrew_upgrade_all=true -e mas_upgrade_all=true \
-		--tags homebrew,mas
+		-e homebrew_upgrade_all=true -e mas_upgrade_all=true -e runtimes_upgrade=true \
+		--tags homebrew,mas,languages

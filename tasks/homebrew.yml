@@ -69,6 +69,13 @@
     install_options: "appdir={{ homebrew_cask_appdir }}"
   when: homebrew_casks | length > 0
 
+- name: Upgrade the security-critical Homebrew formulae.
+  community.general.homebrew:
+    name: "{{ homebrew_security_formulae }}"
+    state: latest
+    path: "{{ homebrew_bin }}"
+  when: homebrew_security_formulae | length > 0
+
 - name: Upgrade all Homebrew formulae.
   community.general.homebrew:
     update_homebrew: true

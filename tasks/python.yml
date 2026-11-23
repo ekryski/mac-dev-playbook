@@ -12,6 +12,42 @@
   register: uv_python_install
   changed_when: "'Installed' in uv_python_install.stderr or 'Installed' in uv_python_install.stdout"
 
+# `uv python install 3.14` is satisfied by any 3.14.x already present, so the
+# patch release only moves when we ask for it.
+- name: Upgrade the configured Python interpreters to their newest patch.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/uv python upgrade {{ uv_python_versions | join(' ') }}"
+  register: uv_python_upgrade
+  changed_when: "'Installed' in uv_python_upgrade.stderr or 'Installed' in uv_python_upgrade.stdout"
+  when: runtimes_upgrade | bool
+
+# uv keeps the patch it upgraded from. Remove every older patch of each
+# configured minor so nothing on PATH still resolves to it.
+- name: Read the installed uv-managed interpreters.
+  ansible.builtin.command:
+    cmd: >-
+      {{ homebrew_bin }}/uv python list --only-installed
+      --python-preference only-managed --output-format json
+  register: uv_python_installed
+  changed_when: false
+  check_mode: false
+  when: runtimes_upgrade | bool
+
+- name: Remove superseded Python patch releases.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/uv python uninstall {{ item }}"
+  loop: >-
+    {%- set installed = uv_python_installed.stdout | from_json -%}
+    {%- set old = [] -%}
+    {%- for minor in uv_python_versions -%}
+    {%- set found = installed | selectattr('version', 'match', (minor | regex_escape) ~ '\\.')
+        | map(attribute='version') | unique | community.general.version_sort -%}
+    {%- set _ = old.extend(found[:-1]) -%}
+    {%- endfor -%}
+    {{ old }}
+  changed_when: true
+  when: runtimes_upgrade | bool
+
 # Writes ~/.python-version, which every `uv run` / `uv venv` outside a project
 # falls back to.
 - name: Pin the default Python version.

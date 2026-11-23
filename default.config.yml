@@ -83,6 +83,13 @@ ssh_github_key_title: "{{ macos_computer_name }} ssh key"
 # fast and predictable; turn on (or use --tags homebrew-upgrade) when you want it.
 homebrew_upgrade_all: false
 
+# Upgraded on every run even when homebrew_upgrade_all is off: the trust store
+# and TLS library everything else links against. A stale ca-certificates keeps
+# trusting roots that have since been distrusted.
+homebrew_security_formulae:
+  - ca-certificates
+  - openssl@3
+
 homebrew_taps:
   - mongodb/brew
 
@@ -252,6 +259,18 @@ mise_tools:
   node: "lts"
   ruby: "3.4"
   go: "latest"
+
+# Tools whose own version files (.nvmrc, .ruby-version, go.mod) mise reads.
+mise_idiomatic_version_files:
+  - node
+  - ruby
+  - go
+
+# Move every runtime above (and every uv Python below) to the newest patch in
+# its configured range on each run, and remove the versions that replaces.
+# Security fixes land in patch releases; an old patch left on disk is still on
+# PATH for anything that pinned it.
+runtimes_upgrade: true
 
 # Global npm packages. Left empty on purpose: globals installed against a
 # mise-managed node disappear when you change node versions. Prefer `npx`,
