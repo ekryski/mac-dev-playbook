@@ -1,8 +1,9 @@
 ---
-# mise is the single version manager for node, ruby and go. Each key is set in
-# place rather than the file rewritten from a template, so pins another tool
-# writes to the same file (the Waffuru ops bootstrap's `mise use --global` for
-# node, rust and gh) survive a run.
+# mise is the single version manager for node, ruby and go. This file holds
+# only your machine-wide defaults (mise_tools); each key is set in place, so a
+# key you add by hand survives a run. Other tools keep their own files beside
+# it: the Waffuru ops bootstrap writes conf.d/waffuru.toml, which this file
+# overrides where both name a tool.
 - name: Ensure the mise config directory exists.
   ansible.builtin.file:
     path: "{{ ansible_facts.env.HOME }}/.config/mise"

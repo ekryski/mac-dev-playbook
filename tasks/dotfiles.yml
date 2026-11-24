@@ -20,6 +20,23 @@
     update: false
     accept_hostkey: true
 
+# Earlier runs linked the whole ~/.config/mise directory into the repo; now only
+# config.toml is linked. Remove the old directory link (the files stay in the
+# repo) before the backup step, which would otherwise move the repo's own
+# config.toml aside through it.
+- name: Check for the old ~/.config/mise directory link.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.env.HOME }}/.config/mise"
+  register: dotfiles_mise_dir
+
+- name: Remove the old ~/.config/mise directory link.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/.config/mise"
+    state: absent
+  when:
+    - dotfiles_mise_dir.stat.islnk | default(false)
+    - dotfiles_links | selectattr('dest', 'equalto', '.config/mise') | list | length == 0
+
 - name: Inspect what is currently at each dotfile destination.
   ansible.builtin.stat:
     path: "{{ ansible_facts.env.HOME }}/{{ item.dest }}"

@@ -20,15 +20,19 @@
     path: /Applications/Xcode.app
   register: xcode_app
 
-# Everything below only applies once Xcode.app itself exists (installed by the
-# mas role, or by hand). A machine with just the CLT skips it all.
+# Everything below only applies once Xcode.app itself exists (installed by
+# hand; the Waffuru ops bootstrap installs its own with xcodes as
+# Xcode-<version>.app). A machine with just the CLT skips it all.
 - name: Configure the full Xcode installation.
   when: xcode_app.stat.exists
   block:
+    # Only from the bare Command Line Tools: a full Xcode already selected
+    # (xcodes' Xcode-<version>.app, say) was chosen on purpose and stays.
     - name: Point xcode-select at Xcode.app.
       ansible.builtin.command: xcode-select --switch /Applications/Xcode.app/Contents/Developer
       become: true
-      changed_when: "'/Applications/Xcode.app' not in xcode_clt_path.stdout"
+      when: "'CommandLineTools' in xcode_clt_path.stdout"
+      changed_when: true
 
     - name: Check whether the Xcode license has been accepted.
       ansible.builtin.command: xcodebuild -checkFirstLaunchStatus

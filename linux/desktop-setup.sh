@@ -589,6 +589,57 @@ step_claude() {
 
   step_claude_code
   step_claude_desktop
+  step_claude_settings
+}
+
+# Turn off Claude Code's attribution in its user settings, keeping every other
+# key: no Co-Authored-By trailer on commits, no "Generated with Claude Code"
+# line or session link in PR bodies. Same values as the macOS playbook's
+# claude_code_settings. A symlinked file (dotfiles) is written through the
+# link; a file that isn't a JSON object is left alone.
+step_claude_settings() {
+  local file="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+  if ! have python3; then
+    warn "python3 not found; set attribution off in $file by hand"
+    return 0
+  fi
+  if [[ "$DRY_RUN" == true ]]; then
+    printf '%s     $ merge attribution off into %s%s\n' "$C_DIM" "$file" "$C_OFF"
+    return 0
+  fi
+  local result
+  result="$(python3 -I - "$file" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+want = {"commit": "", "pr": "", "sessionUrl": False}
+try:
+    with open(path) as f:
+        settings = json.load(f)
+except FileNotFoundError:
+    settings = {}
+except ValueError:
+    print("broken"); sys.exit(0)
+if not isinstance(settings, dict):
+    print("broken"); sys.exit(0)
+have = settings.get("attribution")
+if have is False or (isinstance(have, dict) and all(have.get(k) == v for k, v in want.items())):
+    print("same"); sys.exit(0)
+settings["attribution"] = {**(have if isinstance(have, dict) else {}), **want}
+os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+new = not os.path.exists(path)
+# open for writing follows a symlink, so a dotfiles link stays a link.
+with open(path, "w") as f:
+    json.dump(settings, f, indent=2); f.write("\n")
+if new:
+    os.chmod(path, 0o600)
+print("written")
+PY
+)"
+  case "$result" in
+    same) skip "Claude Code attribution already off ($file)" ;;
+    written) ok "Claude Code attribution off ($file)" ;;
+    *) warn "$file is not a JSON object; left as is (fix it, then re-run --only claude)" ;;
+  esac
 }
 
 step_claude_code() {

@@ -1,0 +1,263 @@
+---
+# The macOS settings Pantry's posture checks look for (after the CIS macOS
+# Benchmark), read the way Pantry reads them and changed only when they differ.
+# What can't be set unattended (FileVault, SIP, the screen lock password, a
+# standard everyday account, encrypted DNS) is checked and reported at the end.
+
+# --- firewall ---------------------------------------------------------------
+- name: Read the application firewall state.
+  ansible.builtin.command: /usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate
+  register: security_fw_state
+  changed_when: false
+  check_mode: false
+
+- name: Turn the application firewall on.
+  ansible.builtin.command: /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+  become: true
+  changed_when: true
+  when:
+    - security_firewall | bool
+    - "'enabled' not in security_fw_state.stdout"
+
+- name: Read firewall stealth mode.
+  ansible.builtin.command: /usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode
+  register: security_fw_stealth
+  changed_when: false
+  check_mode: false
+
+- name: Turn firewall stealth mode on.
+  ansible.builtin.command: /usr/libexec/ApplicationFirewall/socketfilterfw --setstealthmode on
+  become: true
+  changed_when: true
+  when:
+    - security_firewall_stealth | bool
+    - "'enabled' not in security_fw_stealth.stdout and 'is on' not in security_fw_stealth.stdout"
+
+# --- Gatekeeper and quarantine ------------------------------------------------
+- name: Read Gatekeeper's state.
+  ansible.builtin.command: /usr/sbin/spctl --status
+  register: security_gatekeeper_state
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Turn Gatekeeper on.
+  ansible.builtin.command: /usr/sbin/spctl --global-enable
+  become: true
+  changed_when: true
+  when:
+    - security_gatekeeper | bool
+    - "'assessments enabled' not in security_gatekeeper_state.stdout"
+
+- name: Keep the downloaded-from-the-internet check.
+  community.general.osx_defaults:
+    domain: com.apple.LaunchServices
+    key: LSQuarantine
+    type: bool
+    value: true
+    state: present
+  when: security_quarantine | bool
+
+# --- login window -------------------------------------------------------------
+- name: Set the login window policy.
+  community.general.osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow
+    key: "{{ item.key }}"
+    type: "{{ item.type }}"
+    value: "{{ item.value }}"
+    state: present
+  become: true
+  loop:
+    - { key: GuestEnabled, type: bool, value: "{{ security_guest_account }}" }
+    - { key: RetriesUntilHint, type: int, value: "{{ 3 if security_password_hints | bool else 0 }}" }
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
+- name: Turn automatic login off.
+  community.general.osx_defaults:
+    domain: /Library/Preferences/com.apple.loginwindow
+    key: autoLoginUser
+    state: absent
+  become: true
+  when: not security_auto_login | bool
+
+# The obfuscated password automatic login reads at boot.
+- name: Remove the automatic login password.
+  ansible.builtin.file:
+    path: /etc/kcpassword
+    state: absent
+  become: true
+  when: not security_auto_login | bool
+
+# --- sharing services ---------------------------------------------------------
+# Pantry reads `launchctl print-disabled system`: a label listed as disabled,
+# or not listed at all (never turned on), is off.
+- name: Read which system services are disabled.
+  ansible.builtin.command: launchctl print-disabled system
+  register: security_launchd_disabled
+  changed_when: false
+  check_mode: false
+
+- name: Turn sharing services off.
+  ansible.builtin.shell: |
+    launchctl disable system/{{ item }}
+    launchctl bootout system/{{ item }} 2>/dev/null || true
+  become: true
+  changed_when: true
+  loop: "{{ security_disabled_services }}"
+  when: ('"' ~ item ~ '" => enabled') in security_launchd_disabled.stdout
+
+- name: Check whether Remote Management is running.
+  ansible.builtin.command: pgrep -x ARDAgent
+  register: security_ard
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Turn Remote Management off.
+  ansible.builtin.command: >-
+    /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart
+    -deactivate -configure -access -off
+  become: true
+  changed_when: true
+  when:
+    - not security_remote_management | bool
+    - security_ard.rc == 0
+
+- name: Read Internet Sharing's state.
+  ansible.builtin.command: defaults read /Library/Preferences/SystemConfiguration/com.apple.nat NAT
+  register: security_nat
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Turn Internet Sharing off.
+  ansible.builtin.command: >-
+    defaults write /Library/Preferences/SystemConfiguration/com.apple.nat
+    NAT -dict-add Enabled -int 0
+  become: true
+  changed_when: true
+  when:
+    - not security_internet_sharing | bool
+    - security_nat.stdout is regex('Enabled\s*=\s*1')
+
+- name: Read the printing settings.
+  ansible.builtin.command: cupsctl
+  register: security_cups
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Turn Printer Sharing off.
+  ansible.builtin.command: cupsctl --no-share-printers
+  changed_when: true
+  when:
+    - not security_printer_sharing | bool
+    - "'_share_printers=1' in security_cups.stdout_lines"
+
+- name: Turn Bluetooth Sharing off.
+  community.general.osx_defaults:
+    domain: com.apple.Bluetooth
+    host: currentHost
+    key: PrefKeyServicesEnabled
+    type: bool
+    value: "{{ security_bluetooth_sharing }}"
+    state: present
+
+- name: Set who AirDrop receives from.
+  community.general.osx_defaults:
+    domain: com.apple.sharingd
+    key: DiscoverableMode
+    type: string
+    value: "{{ security_airdrop }}"
+    state: present
+
+# --- time, screen saver, Terminal ---------------------------------------------
+- name: Read whether the clock is set over the network.
+  ansible.builtin.command: /usr/sbin/systemsetup -getusingnetworktime
+  become: true
+  register: security_ntp
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Set the time and date automatically.
+  ansible.builtin.command: /usr/sbin/systemsetup -setusingnetworktime on
+  become: true
+  changed_when: true
+  when:
+    - security_network_time | bool
+    - "'Off' in security_ntp.stdout"
+
+- name: Read the screen saver delay.
+  ansible.builtin.command: defaults -currentHost read com.apple.screensaver idleTime
+  register: security_idle
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# 0 is "never"; a missing key is macOS' default of 20 minutes, which passes.
+- name: Start the screen saver within the limit.
+  community.general.osx_defaults:
+    domain: com.apple.screensaver
+    host: currentHost
+    key: idleTime
+    type: int
+    value: "{{ security_screensaver_idle_max }}"
+    state: present
+  when:
+    - security_idle.rc == 0
+    - (security_idle.stdout | int) == 0 or (security_idle.stdout | int) > (security_screensaver_idle_max | int)
+
+- name: Turn on Terminal's Secure Keyboard Entry.
+  community.general.osx_defaults:
+    domain: com.apple.Terminal
+    key: SecureKeyboardEntry
+    type: bool
+    value: true
+    state: present
+  when: security_terminal_secure_input | bool
+
+# --- checked, not set ---------------------------------------------------------
+- name: Read FileVault's state.
+  ansible.builtin.command: fdesetup status
+  register: security_filevault
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read System Integrity Protection's state.
+  ansible.builtin.command: csrutil status
+  register: security_sip
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Read this account's groups.
+  ansible.builtin.command: id -Gn
+  register: security_groups
+  changed_when: false
+  check_mode: false
+
+- name: Report what needs a person.
+  ansible.builtin.debug:
+    msg: "{{ (security_todo | selectattr('when') | map(attribute='msg') | list) + security_always }}"
+  vars:
+    security_todo:
+      - when: "{{ 'FileVault is On' not in security_filevault.stdout }}"
+        msg: >-
+          FileVault is off: System Settings → Privacy & Security → FileVault →
+          Turn On, and keep the recovery key somewhere safe (1Password).
+      - when: "{{ 'enabled' not in security_sip.stdout }}"
+        msg: "System Integrity Protection is off: boot to Recovery and run `csrutil enable`."
+      - when: "{{ 'admin' in security_groups.stdout.split() }}"
+        msg: >-
+          This account is an administrator. Pantry recommends a separate admin
+          account and a standard everyday one (System Settings → Users & Groups).
+    security_always:
+      - >-
+        Screen lock: System Settings → Lock Screen → Require password after
+        screen saver begins or display is turned off: Immediately.
+      - >-
+        Encrypted DNS and firewall logging take a configuration profile
+        (NordVPN's or NextDNS's app also covers DNS); `wpantry scan` reports both.

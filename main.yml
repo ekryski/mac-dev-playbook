@@ -84,6 +84,11 @@
       when: configure_git | bool
       tags: ["git"]
 
+    - name: Claude Code settings.
+      ansible.builtin.import_tasks: tasks/claude-code.yml
+      when: configure_claude_code | bool
+      tags: ["claude"]
+
     - name: Language runtimes via mise.
       ansible.builtin.import_tasks: tasks/mise.yml
       when: configure_mise | bool
@@ -119,6 +124,11 @@
       when: configure_software_update | bool
       tags: ["software-update", "defaults"]
 
+    - name: Security settings.
+      ansible.builtin.import_tasks: tasks/security.yml
+      when: configure_security | bool
+      tags: ["security"]
+
   handlers:
     # Most `defaults write` changes only show up once the owning process is
     # restarted. failed_when: false because killall exits 1 if it is not running.
@@ -140,7 +150,11 @@
         manual_steps:
           - "Restart your shell (or `exec zsh`) to pick up the new environment."
           - "Copy your secrets into ~/.zshrc.local -- see .zshrc.local.example in the dotfiles repo."
-          - "Sign in to Slack, Linear, Discord, Spotify and Little Snitch."
+          - "Sign in to Slack, Linear, Discord, Spotify, Telegram, Google Drive, NordVPN and Little Snitch."
+          - >-
+            Grant Screen Recording to DisplayLink Manager and Camo; Wireshark
+            installs its capture helper on first launch.
+          - "Run `wpantry scan` to check the security settings and everything installed."
           - "Little Snitch needs a manual approval in System Settings > Privacy & Security > Network Extensions."
           - "Some macOS preferences only take effect after a logout or restart."
       tags: ["always"]

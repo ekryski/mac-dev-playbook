@@ -33,8 +33,14 @@ cp config.example.yml config.yml   # optional overrides
 ansible-playbook main.yml --ask-become-pass
 ```
 
-`--ask-become-pass` is needed for the Xcode license acceptance. Everything else
-runs unprivileged.
+`--ask-become-pass` is needed for the Xcode license, the software update policy
+and the security settings. Everything else runs unprivileged.
+
+For Waffuru work, run the [ops](https://github.com/waffuruai/ops) bootstrap
+after this. The two don't overlap: this playbook owns
+`~/.config/mise/config.toml` (your machine-wide defaults), and ops keeps its
+own files beside it (`~/.config/mise/conf.d/waffuru.toml`, `~/waffuru/mise.toml`)
+and installs Xcode with xcodes.
 
 ### If you already have Homebrew
 
@@ -51,17 +57,20 @@ make install
 |---|---|
 | `xcode` | Verifies the Command Line Tools, accepts the Xcode license, runs first-launch |
 | `homebrew` | Taps, formulae and casks |
-| `mas` | Mac App Store apps (Xcode, TestFlight, Pages, Numbers, Keynote) |
+| `mas` | Mac App Store apps (TestFlight, Pages, Numbers, Keynote) |
 | `dotfiles` | oh-my-zsh, then clones the dotfiles repo and symlinks it into `$HOME` |
 | `git` | Writes identity and the `gh` credential helper to `~/.gitconfig.local` |
+| `claude` | Merges `claude_code_settings` into `~/.claude/settings.json`, keeping your other keys: by default, no Claude Code attribution on commits or PRs |
 | `ssh` | Generates an ed25519 key, configures the agent + keychain, uploads to GitHub |
 | `github` | Ensures `gh` + 1Password, pauses for sign-in, uploads the SSH key |
-| `mise` | node, ruby and go |
+| `mise` | Your machine-wide node, ruby and go, as ranges kept at the newest patch |
 | `python` | uv-managed interpreters and CLI tools |
 | `rust` | rustup toolchain and components |
 | `docker` | CLI plugins and the Colima VM |
 | `services` | Optionally starts Postgres / Redis / MongoDB |
 | `macos-defaults` | Keyboard, Finder, Dock, screenshot and trackpad preferences |
+| `software-update` | Automatic checks, downloads, security responses, macOS and App Store updates |
+| `security` | The settings Pantry checks: firewall and stealth mode, Gatekeeper, no guest or automatic login, sharing services off, AirDrop contacts only, network time, screen saver, then a report of what needs you (FileVault, SIP, admin account) |
 
 Run one section on its own:
 
@@ -121,17 +130,22 @@ vouch for it.
 | Editors | Cursor, vim, Obsidian |
 | Terminal | Ghostty + JetBrains Mono Nerd Font |
 | Shell | zsh + oh-my-zsh, autosuggestions, syntax highlighting, fzf, zoxide |
-| CLIs | Claude Code, gh, 1Password CLI, ansible, pandoc, ffmpeg, mactop, mole, ripgrep, fd, bat, eza, jq, delta |
+| CLIs | Claude Code, gh, 1Password CLI, ansible, pandoc, ffmpeg, mactop, mole (`mo uninstall` removes an app and its leftovers), ripgrep, fd, bat, eza, jq, delta |
 
 `nvm` is installed but not loaded — its shims conflict with mise's. The dotfiles
 carry a commented block to switch back if a project demands it.
 
 ### Applications
 
-Casks: Ghostty, Cursor, Obsidian, Brave, Google Chrome, Slack, Discord, Claude,
-Claude Code, Linear, 1Password, Spotify, Screen Studio, Little Snitch.
+Casks: Ghostty, Cursor, Obsidian, Brave, Google Chrome, Firefox, Slack, Discord,
+Telegram, Claude, Claude Code, Linear, 1Password, Spotify, Screen Studio,
+CapCut, Camo Studio, Transmission, Android Studio, DB Browser for SQLite,
+Wireshark, balenaEtcher, Google Drive, DisplayLink Manager, Little Snitch,
+NordVPN.
 
-Mac App Store: Xcode, TestFlight, Pages, Numbers, Keynote.
+Mac App Store: TestFlight, Pages, Numbers, Keynote. Not Xcode: the App Store
+updates its one Xcode.app in place, so install the versions you build with side
+by side with `xcodes` (the ops bootstrap does).
 
 The full list is in [default.config.yml](default.config.yml).
 
@@ -141,7 +155,9 @@ The full list is in [default.config.yml](default.config.yml).
 make update     # upgrade every formula, cask and App Store app, plus runtimes
 ```
 
-Every run also upgrades `ca-certificates` and `openssl@3`, and moves the mise
+Every run upgrades every formula and cask (`homebrew_upgrade_all`), and macOS
+installs its own and App Store updates in between. Every run also upgrades
+`ca-certificates` and `openssl@3`, and moves the mise
 runtimes and uv Pythons to the newest patch in their configured range, removing
 the ones they replace (`runtimes_upgrade: false` turns that off).
 
@@ -154,17 +170,23 @@ Things Ansible genuinely can't do:
 1. **Sign in to the App Store** before running with `--tags mas`.
 2. **Little Snitch** needs approval in System Settings → Privacy & Security →
    Network Extensions, and a restart.
-3. **Full Disk Access / Accessibility** grants for the terminal and Screen Studio.
-4. **Sign in** to Slack, Linear, Discord, Spotify, Cursor and Claude.
-5. **`~/.zshrc.local`** — copy `.zshrc.local.example` from the dotfiles repo and
+3. **Full Disk Access / Accessibility** grants for the terminal and Screen Studio;
+   Screen Recording for DisplayLink Manager and Camo; Wireshark's capture helper
+   (ChmodBPF) on its first launch.
+4. **Sign in** to Slack, Linear, Discord, Spotify, Cursor, Claude, Telegram,
+   Google Drive and NordVPN.
+5. **FileVault**, if Setup Assistant didn't turn it on, and a **standard
+   everyday account** with a separate admin one: the `security` tag reports
+   both. Run `wpantry scan` afterwards to confirm the rest.
+6. **`~/.zshrc.local`** — copy `.zshrc.local.example` from the dotfiles repo and
    fill in your tokens.
-6. **1Password + `gh auth`** — the `ssh`/`github` tags pause with the commands
+7. **1Password + `gh auth`** — the `ssh`/`github` tags pause with the commands
    to sign in to 1Password, then:
    `gh auth login -h github.com`,
    `gh auth refresh -h github.com -s admin:ssh_signing_key -s admin:public_key`,
    after which the playbook runs
    `gh ssh-key add --title "{Computer Name} ssh key" ~/.ssh/id_ed25519.pub`.
-7. Some macOS defaults only apply after a logout or restart.
+8. Some macOS defaults only apply after a logout or restart.
 
 ## Development
 
