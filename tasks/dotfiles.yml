@@ -1,6 +1,6 @@
 ---
 # .zshrc sources ~/.oh-my-zsh/oh-my-zsh.sh. The official installer also writes
-# a .zshrc, so clone the repo and leave our linked dotfiles alone. `gst` and
+# a .zshrc, so clone the repo and leave our dotfiles alone. `gst` and
 # the rest of the git aliases come from the oh-my-zsh git plugin.
 - name: Install oh-my-zsh.
   ansible.builtin.git:
@@ -86,6 +86,9 @@
   loop_control:
     label: "~/{{ item.dest }} -> {{ item.src }}"
 
+- name: Write the stubs that load the repo's shell and git files.
+  ansible.builtin.import_tasks: dotfile-stubs.yml
+
 # Sourced by .zshrc when present. Machine-local secrets and overrides live here
 # so they never end up in the dotfiles repo.
 - name: Seed ~/.zshrc.local if it does not exist.
@@ -95,17 +98,3 @@
     mode: "0600"
     force: false
     remote_src: true
-
-# The linked Ghostty config may still have camelCase names from an older
-# checkout. Bundled themes is `Afterglow`.
-- name: Check for a Ghostty config.
-  ansible.builtin.stat:
-    path: "{{ ansible_facts.env.HOME }}/.config/ghostty/config"
-  register: ghostty_config
-
-- name: Use Ghostty's bundled Afterglow theme.
-  ansible.builtin.replace:
-    path: "{{ ansible_facts.env.HOME }}/.config/ghostty/config"
-    regexp: '^theme\s*=.*$'
-    replace: "theme = {{ ghostty_theme }}"
-  when: ghostty_config.stat.exists
