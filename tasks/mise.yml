@@ -4,6 +4,62 @@
 # key you add by hand survives a run. Other tools keep their own files beside
 # it: the Waffuru ops bootstrap writes conf.d/waffuru.toml, which this file
 # overrides where both name a tool.
+# mise from its own installer, not Homebrew: https://mise.run puts it in
+# ~/.local/bin, which the dotfiles put on PATH. The installer is downloaded
+# first and then run, rather than piped into a shell, and it checks the
+# release tarball's sha256 itself. It edits no shell files: the dotfiles
+# activate mise (zsh/tools.zsh).
+- name: Locate mise.
+  ansible.builtin.set_fact:
+    mise_bin: "{{ ansible_facts.env.HOME }}/.local/bin/mise"
+
+- name: Check for mise.
+  ansible.builtin.stat:
+    path: "{{ mise_bin }}"
+    follow: false
+  register: mise_bin_stat
+
+- name: Download the mise installer.
+  ansible.builtin.get_url:
+    url: https://mise.run
+    dest: "{{ ansible_facts.env.TMPDIR | default('/tmp') }}/mise-install.sh"
+    mode: "0700"
+  when: not mise_bin_stat.stat.exists
+
+- name: Install mise.
+  ansible.builtin.command:
+    cmd: "sh {{ ansible_facts.env.TMPDIR | default('/tmp') }}/mise-install.sh"
+    creates: "{{ mise_bin }}"
+  environment:
+    MISE_INSTALL_PATH: "{{ mise_bin }}"
+  when: not mise_bin_stat.stat.exists
+
+- name: Remove the mise installer.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.TMPDIR | default('/tmp') }}/mise-install.sh"
+    state: absent
+
+# A link means another tool installed mise and pins its version (the
+# Waffuru ops bootstrap links ~/.local/bin/mise to its verified copy), so it
+# is left as it is.
+- name: Update mise.
+  ansible.builtin.command:
+    cmd: "{{ mise_bin }} self-update --yes"
+  register: mise_self_update_result
+  changed_when: "'Updated' in mise_self_update_result.stdout or 'updated' in mise_self_update_result.stderr"
+  when:
+    - mise_self_update | bool
+    - mise_bin_stat.stat.exists
+    - not (mise_bin_stat.stat.islnk | default(false))
+
+# Earlier versions of this playbook installed mise with Homebrew. Two copies
+# on PATH means whichever comes first wins, so the Homebrew one goes.
+- name: Remove Homebrew's mise.
+  community.general.homebrew:
+    name: mise
+    state: absent
+    path: "{{ homebrew_bin }}"
+
 - name: Ensure the mise config directory exists.
   ansible.builtin.file:
     path: "{{ ansible_facts.env.HOME }}/.config/mise"
@@ -35,7 +91,7 @@
 # and libyaml rather than the system ones.
 - name: Install the configured mise tools.
   ansible.builtin.command:
-    cmd: "{{ homebrew_bin }}/mise install --yes"
+    cmd: "{{ mise_bin }} install --yes"
   environment:
     MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
     RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
@@ -48,7 +104,7 @@
 # one it replaced.
 - name: Upgrade mise tools to the newest release in their range.
   ansible.builtin.command:
-    cmd: "{{ homebrew_bin }}/mise upgrade --yes --prune"
+    cmd: "{{ mise_bin }} upgrade --yes --prune"
   environment:
     MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
     RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
@@ -59,7 +115,7 @@
 
 - name: Show the resolved tool versions.
   ansible.builtin.command:
-    cmd: "{{ homebrew_bin }}/mise list --current"
+    cmd: "{{ mise_bin }} list --current"
   register: mise_list
   changed_when: false
 
@@ -71,7 +127,7 @@
 # installation rather than whatever npm happens to be first on PATH.
 - name: Install global npm packages.
   ansible.builtin.command:
-    cmd: "{{ homebrew_bin }}/mise exec -- npm install --global {{ item }}"
+    cmd: "{{ mise_bin }} exec -- npm install --global {{ item }}"
   loop: "{{ npm_global_packages }}"
   register: npm_global
   changed_when: "'added' in npm_global.stdout or 'changed' in npm_global.stdout"
