@@ -112,7 +112,6 @@ homebrew_formulae:
   - git
   - git-lfs
   - gh
-  - mise                  # node / ruby / go version manager
   - uv                    # python versions + venvs + tool installs
   - pnpm
   - nvm                   # escape hatch; not loaded by default, see .zprofile
@@ -290,6 +289,12 @@ software_update_install_app_updates: true
 # needs machine-wide, ~/waffuru/mise.toml for the org's repos.
 # Ruby is compiled from source, so the first run takes a few minutes.
 # ---------------------------------------------------------------------------
+# mise itself comes from its own installer (https://mise.run) into
+# ~/.local/bin/mise, not Homebrew. Each run updates it with `mise self-update`,
+# unless ~/.local/bin/mise is a link, which means another tool (the Waffuru
+# ops bootstrap) installed and pins it.
+mise_self_update: true
+
 mise_tools:
   node: "lts"
   ruby: "3.4"

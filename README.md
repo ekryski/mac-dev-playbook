@@ -63,7 +63,7 @@ make install
 | `claude` | Merges `claude_code_settings` into `~/.claude/settings.json`, keeping your other keys: by default, no Claude Code attribution on commits or PRs |
 | `ssh` | Generates an ed25519 key, configures the agent + keychain, uploads to GitHub |
 | `github` | Ensures `gh` + 1Password, pauses for sign-in, uploads the SSH key |
-| `mise` | Your machine-wide node, ruby and go, as ranges kept at the newest patch |
+| `mise` | mise from its own installer ([mise.run](https://mise.run), into `~/.local/bin`, kept current with `mise self-update`), then your machine-wide node, ruby and go, as ranges kept at the newest patch |
 | `python` | uv-managed interpreters and CLI tools |
 | `rust` | rustup toolchain and components |
 | `docker` | CLI plugins and the Colima VM |
@@ -122,7 +122,7 @@ vouch for it.
 | Area | Tooling |
 |---|---|
 | Package manager | Homebrew |
-| Version manager | mise (node, ruby, go) |
+| Version manager | mise (node, ruby, go), from mise.run rather than Homebrew |
 | Python | uv — interpreters, venvs, and isolated CLI tools |
 | Rust | rustup with clippy, rustfmt, rust-analyzer |
 | Containers | docker CLI + compose + buildx, Colima (`vz` + Rosetta) |
