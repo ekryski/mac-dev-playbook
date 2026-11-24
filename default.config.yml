@@ -22,6 +22,7 @@ configure_docker: true
 configure_services: true
 configure_macos_defaults: true
 configure_software_update: true
+configure_security: true
 
 # ---------------------------------------------------------------------------
 # Identity
@@ -59,7 +60,10 @@ dotfiles_links:
   - { src: ".vimrc", dest: ".vimrc" }
   - { src: ".editorconfig", dest: ".editorconfig" }
   - { src: "config/ghostty", dest: ".config/ghostty" }
-  - { src: "config/mise", dest: ".config/mise" }
+  # Only the file: ~/.config/mise stays a real directory, so what other tools
+  # add there (the Waffuru ops bootstrap's conf.d/waffuru.toml) stays out of
+  # the dotfiles repo.
+  - { src: "config/mise/config.toml", dest: ".config/mise/config.toml" }
 
 # Ghostty ships themes as files with spaces in the name (`ghostty +list-themes`).
 ghostty_theme: "Afterglow"
@@ -79,9 +83,10 @@ ssh_github_key_title: "{{ macos_computer_name }} ssh key"
 # ---------------------------------------------------------------------------
 # Homebrew
 # ---------------------------------------------------------------------------
-# `brew upgrade` everything on each run. Off by default so a routine run stays
-# fast and predictable; turn on (or use --tags homebrew-upgrade) when you want it.
-homebrew_upgrade_all: false
+# `brew upgrade` everything on each run, so a run leaves no formula or cask
+# behind on a security fix. Casks that update themselves are skipped by brew;
+# the rest (Etcher, CapCut, DisplayLink, DB Browser, ...) only update this way.
+homebrew_upgrade_all: true
 
 # Upgraded on every run even when homebrew_upgrade_all is off: the trust store
 # and TLS library everything else links against. A stale ca-certificates keeps
@@ -153,7 +158,7 @@ homebrew_formulae:
 
   # --- system monitoring ---
   - mactop                # Apple Silicon CPU/GPU monitor
-  - mole                  # network / tunnel tool
+  - mole                  # cleaner and app uninstaller (`mo uninstall` removes an app and its leftovers)
 
   # --- zsh: completions, suggestions, highlighting ---
   # These are what keep tab-completion rich. .zshrc wires them up.
@@ -196,10 +201,12 @@ homebrew_casks:
   # --- browsers ---
   - brave-browser
   - google-chrome
+  - firefox
 
   # --- communication ---
   - slack
   - discord
+  - telegram              # the native macOS client
 
   # --- productivity ---
   - claude                # Claude desktop app
@@ -213,9 +220,24 @@ homebrew_casks:
   # --- media ---
   - spotify
   - screen-studio
+  - capcut
+  - camo-studio           # Reincubate Camo: a phone as the webcam
+  # Open source and auto-updating; Pantry checks it against its CVE records.
+  - transmission
+
+  # --- development ---
+  - android-studio
+  - db-browser-for-sqlite
+  - wireshark-app         # the GUI; installs the capture helper on first launch
+  - balenaetcher          # write OS images to USB and SD cards
+
+  # --- files & devices ---
+  - google-drive
+  - displaylink           # DisplayLink Manager, for DisplayLink docks and monitors
 
   # --- security ---
   - little-snitch
+  - nordvpn
 
   # --- fonts (Ghostty + powerline glyphs) ---
   - font-jetbrains-mono-nerd-font
@@ -229,8 +251,10 @@ homebrew_cask_appdir: /Applications
 # Requires being signed in to the App Store app at least once. IDs can be
 # confirmed with `mas search <name>`.
 # ---------------------------------------------------------------------------
+# Not Xcode: the App Store keeps one Xcode.app and updates it in place. Install
+# the versions you build with side by side with xcodes (the Waffuru ops
+# bootstrap does, at its pinned versions), and App Store updates can stay on.
 mas_installed_apps:
-  - { id: 497799835, name: "Xcode" }
   - { id: 899247664, name: "TestFlight" }
   # iWork ships preinstalled on new Macs; listed so a wiped machine gets them.
   - { id: 409201541, name: "Pages" }
@@ -242,17 +266,27 @@ mas_upgrade_all: false
 # ---------------------------------------------------------------------------
 # Software updates
 #
-# Unattended installs swap toolchains out from under you: an App Store update
-# replaced Xcode 26.6 with 27.0 without anyone choosing it, and macOS offers
-# major upgrades the same way. Checking for updates stays on and security
-# responses are left alone; only automatic *installs* are turned off here.
-software_update_install_app_updates: false
-software_update_install_macos_updates: false
+# All on (CIS macOS 1.2 to 1.4, and what Pantry checks): check and download,
+# install security responses and system data files, macOS updates and App Store
+# app updates. Xcode isn't installed from the App Store (above), so app updates
+# can't swap a toolchain out from under a build. macOS still asks before a
+# major upgrade.
+software_update_automatic_check: true
+software_update_automatic_download: true
+software_update_install_security_responses: true
+software_update_install_macos_updates: true
+software_update_install_app_updates: true
 
 # ---------------------------------------------------------------------------
 # Language runtimes (mise)
 #
-# Written to ~/.config/mise/config.toml, then `mise install` materialises them.
+# Your machine-wide defaults, in ~/.config/mise/config.toml (the dotfiles
+# copy). Use ranges ("lts", "3.4", "latest"), not exact versions: each run's
+# `mise upgrade` (runtimes_upgrade) then moves to the newest patch in range,
+# so a security fix lands without bumping anything. A project that needs
+# something else says so in its own mise.toml or version file. Waffuru's ops
+# bootstrap keeps its pins out of this file: conf.d/waffuru.toml for what it
+# needs machine-wide, ~/waffuru/mise.toml for the org's repos.
 # Ruby is compiled from source, so the first run takes a few minutes.
 # ---------------------------------------------------------------------------
 mise_tools:
@@ -383,9 +417,40 @@ macos_defaults:
   - { domain: "com.apple.screencapture", key: disable-shadow, type: bool, value: true }
 
   # --- misc ---
-  - { domain: "com.apple.LaunchServices", key: LSQuarantine, type: bool, value: false }
   - { domain: "com.apple.CrashReporter", key: DialogType, type: string, value: none }
   - { domain: "com.apple.print.PrintingPrefs", key: "Quit When Finished", type: bool, value: true }
 
 # Directory the screenshot preference above points at.
 macos_screenshot_dir: "~/Desktop/Screenshots"
+
+# ---------------------------------------------------------------------------
+# Security (tasks/security.yml)
+#
+# The macOS settings Pantry checks (its posture checks, after the CIS macOS
+# Benchmark), set so a new Mac starts out passing them. Each is read first and
+# changed only when it differs. Needs --ask-become-pass.
+# ---------------------------------------------------------------------------
+security_firewall: true                 # application firewall on (CIS 2.2.1)
+security_firewall_stealth: true         # don't answer pings or probes (CIS 2.2.2)
+security_gatekeeper: true               # only signed, notarised apps (CIS 2.6.5)
+security_quarantine: true               # keep the "downloaded from the internet" check
+security_guest_account: false           # CIS 2.13.1
+security_auto_login: false              # CIS 2.13.3
+security_password_hints: false          # CIS 2.11.5
+security_network_time: true             # CIS 2.3.2.1
+# Seconds idle before the screen saver starts (CIS 2.11.1: 20 minutes or less).
+# A lower value you already set is kept.
+security_screensaver_idle_max: 1200
+security_terminal_secure_input: true    # Terminal.app Secure Keyboard Entry (CIS 6.4.1)
+security_airdrop: "Contacts Only"       # or "Off"; Everyone is what Pantry warns on
+security_bluetooth_sharing: false       # CIS 2.3.3.10
+security_internet_sharing: false        # CIS 2.3.3.7
+security_printer_sharing: false         # CIS 2.3.3.3
+security_remote_management: false       # Apple Remote Desktop (CIS 2.3.3.5)
+# Sharing services turned off by their launchd label. Drop one here (in
+# config.yml) to leave it alone, e.g. com.openssh.sshd if you ssh in.
+security_disabled_services:
+  - com.openssh.sshd                    # Remote Login (CIS 2.3.3.4)
+  - com.apple.screensharing             # Screen Sharing (CIS 2.3.3.1)
+  - com.apple.smbd                      # File Sharing (CIS 2.3.3.2)
+  - com.apple.AEServer                  # Remote Apple Events (CIS 2.3.3.6)

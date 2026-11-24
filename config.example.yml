@@ -25,7 +25,8 @@
 #   - redis
 
 # --- language versions ----------------------------------------------------
-# Leave node out when the Waffuru ops bootstrap pins it (`mise use --global`).
+# Your machine-wide defaults. Keep them ranges so each run's upgrade picks up
+# patches; Waffuru repos get their pins from the ops bootstrap, not from here.
 # mise_tools:
 #   node: "22"
 #   ruby: "3.4"
@@ -34,6 +35,13 @@
 
 # uv_python_versions:
 #   - "3.13"
+
+# --- security --------------------------------------------------------------
+# Leave a sharing service on (drop it from the list), e.g. to ssh in:
+# security_disabled_services:
+#   - com.apple.screensharing
+#   - com.apple.smbd
+#   - com.apple.AEServer
 
 # --- colima sizing --------------------------------------------------------
 # colima_cpus: 8
