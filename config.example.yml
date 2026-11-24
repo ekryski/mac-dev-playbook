@@ -25,6 +25,7 @@
 #   - redis
 
 # --- language versions ----------------------------------------------------
+# Leave node out when the Waffuru ops bootstrap pins it (`mise use --global`).
 # mise_tools:
 #   node: "22"
 #   ruby: "3.4"

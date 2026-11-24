@@ -1,19 +1,34 @@
 ---
-# mise is the single version manager for node, ruby and go. Writing the config
-# file declaratively (rather than shelling out to `mise use`) keeps the desired
-# state in this repo and makes the task idempotent for free.
+# mise is the single version manager for node, ruby and go. Each key is set in
+# place rather than the file rewritten from a template, so pins another tool
+# writes to the same file (the Waffuru ops bootstrap's `mise use --global` for
+# node, rust and gh) survive a run.
 - name: Ensure the mise config directory exists.
   ansible.builtin.file:
     path: "{{ ansible_facts.env.HOME }}/.config/mise"
     state: directory
     mode: "0755"
 
-- name: Write the global mise configuration.
-  ansible.builtin.template:
-    src: mise-config.toml.j2
-    dest: "{{ ansible_facts.env.HOME }}/.config/mise/config.toml"
+- name: Set the global mise tool versions.
+  community.general.ini_file:
+    path: "{{ ansible_facts.env.HOME }}/.config/mise/config.toml"
+    section: tools
+    option: "{{ item.key }}"
+    value: "{{ item.value | to_json }}"
     mode: "0644"
-  register: mise_config
+  loop: "{{ mise_tools | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+
+# Honour the version files other tools already write (.nvmrc, .node-version,
+# .ruby-version, go.mod) so existing projects work without a .mise.toml.
+- name: Read the version files other tools write.
+  community.general.ini_file:
+    path: "{{ ansible_facts.env.HOME }}/.config/mise/config.toml"
+    section: settings
+    option: idiomatic_version_file_enable_tools
+    value: "{{ mise_idiomatic_version_files | to_json }}"
+    mode: "0644"
 
 # Ruby is compiled from source, so ruby-build needs to find Homebrew's OpenSSL
 # and libyaml rather than the system ones.
@@ -26,6 +41,20 @@
     PKG_CONFIG_PATH: "{{ homebrew_prefix }}/opt/libyaml/lib/pkgconfig:{{ homebrew_prefix }}/opt/openssl@3/lib/pkgconfig"
   register: mise_install
   changed_when: "'Installing' in mise_install.stdout or 'installed' in mise_install.stdout"
+
+# `mise install` stops at whatever already satisfies "26" or "3.4"; upgrade
+# moves each tool to the newest release in that range and --prune removes the
+# one it replaced.
+- name: Upgrade mise tools to the newest release in their range.
+  ansible.builtin.command:
+    cmd: "{{ homebrew_bin }}/mise upgrade --yes --prune"
+  environment:
+    MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
+    RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
+    PKG_CONFIG_PATH: "{{ homebrew_prefix }}/opt/libyaml/lib/pkgconfig:{{ homebrew_prefix }}/opt/openssl@3/lib/pkgconfig"
+  register: mise_upgrade
+  changed_when: "'installed' in mise_upgrade.stdout or 'uninstalled' in mise_upgrade.stdout"
+  when: runtimes_upgrade | bool
 
 - name: Show the resolved tool versions.
   ansible.builtin.command:

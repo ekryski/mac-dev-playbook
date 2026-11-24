@@ -138,8 +138,12 @@ The full list is in [default.config.yml](default.config.yml).
 ## Keeping it current
 
 ```bash
-make update     # upgrade every formula, cask and App Store app
+make update     # upgrade every formula, cask and App Store app, plus runtimes
 ```
+
+Every run also upgrades `ca-certificates` and `openssl@3`, and moves the mise
+runtimes and uv Pythons to the newest patch in their configured range, removing
+the ones they replace (`runtimes_upgrade: false` turns that off).
 
 Re-running the whole playbook is safe and idempotent — that's the point.
 
