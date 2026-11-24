@@ -1,0 +1,98 @@
+---
+# Stubs: a real file that loads the repo's copy. A link left by an earlier
+# run is replaced (the repo's file stays); a real file without the block is
+# backed up like any other; a stub keeps whatever was added below its block.
+- name: Name the stub marker and what each format's block says.
+  ansible.builtin.set_fact:
+    dotfiles_stub_marker_begin: "# BEGIN dotfiles: loads "
+    dotfiles_stub_formats:
+      zsh: 'source "@PATH@"'
+      git: "[include]\n    path = @PATH@"
+
+- name: Inspect what is currently at each stub destination.
+  ansible.builtin.stat:
+    path: "{{ ansible_facts.env.HOME }}/{{ item.dest }}"
+  register: dotfiles_stub_existing
+  loop: "{{ dotfiles_stubs }}"
+  loop_control:
+    label: "~/{{ item.dest }}"
+
+- name: Read the existing stubs.
+  ansible.builtin.slurp:
+    src: "{{ ansible_facts.env.HOME }}/{{ item.item.dest }}"
+  register: dotfiles_stub_content
+  loop: "{{ dotfiles_stub_existing.results }}"
+  loop_control:
+    label: "~/{{ item.item.dest }}"
+  when:
+    - item.stat.exists
+    - not item.stat.islnk
+    - item.stat.isreg
+
+- name: Remove links where a stub goes.
+  ansible.builtin.file:
+    path: "{{ ansible_facts.env.HOME }}/{{ item.item.dest }}"
+    state: absent
+  loop: "{{ dotfiles_stub_existing.results }}"
+  loop_control:
+    label: "~/{{ item.item.dest }}"
+  when: item.stat.islnk | default(false)
+
+- name: Back up existing files that are not stubs yet.
+  ansible.builtin.command:
+    cmd: >-
+      mv {{ (ansible_facts.env.HOME ~ '/' ~ item.item.item.dest) | quote }}
+      {{ (ansible_facts.env.HOME ~ '/.dotfiles-backup/' ~ (item.item.item.dest | basename)) | quote }}
+    removes: "{{ ansible_facts.env.HOME }}/{{ item.item.item.dest }}"
+  loop: "{{ dotfiles_stub_content.results }}"
+  loop_control:
+    label: "~/{{ item.item.item.dest }}"
+  when:
+    - item.content is defined
+    - dotfiles_stub_marker_begin not in (item.content | b64decode)
+
+- name: Write the stubs.
+  ansible.builtin.blockinfile:
+    path: "{{ ansible_facts.env.HOME }}/{{ item.dest }}"
+    create: true
+    mode: "0644"
+    insertbefore: BOF
+    marker: "# {mark} dotfiles: loads {{ dotfiles_repo_dest }}/{{ item.src }} (mac-dev-playbook)"
+    marker_begin: BEGIN
+    marker_end: END
+    block: >-
+      {{ dotfiles_stub_formats[item.format]
+         | replace('@PATH@', (dotfiles_repo_dest | expanduser) ~ '/' ~ item.src) }}
+  loop: "{{ dotfiles_stubs }}"
+  loop_control:
+    label: "~/{{ item.dest }} loads {{ item.src }}"
+
+# Lines below a stub's block are this machine's own: what tools added, or what
+# you added by hand. Listed so you can move any you want everywhere into the
+# repo's copy.
+- name: Read what this machine added to the stubs.
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail;
+      sed '1,/^# END dotfiles: /d' {{ (ansible_facts.env.HOME ~ '/' ~ item.dest) | quote }}
+      | grep -cv '^[[:space:]]*$' || true
+    executable: /bin/bash
+  register: dotfiles_stub_local
+  changed_when: false
+  loop: "{{ dotfiles_stubs }}"
+  loop_control:
+    label: "~/{{ item.dest }}"
+  when: not ansible_check_mode
+
+
+- name: Report this machine's own lines in the stubs.
+  ansible.builtin.debug:
+    msg: >-
+      This machine's own lines below the dotfiles block:
+      {{ dotfiles_stub_local.results
+         | selectattr('stdout', 'ne', '0')
+         | map(attribute='item.dest')
+         | map('regex_replace', '^', '~/')
+         | list
+         | join(', ') or 'none' }}.
+  when: not ansible_check_mode

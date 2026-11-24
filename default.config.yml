@@ -48,14 +48,23 @@ oh_my_zsh_repo: "https://github.com/ohmyzsh/ohmyzsh.git"
 oh_my_zsh_version: "master"
 oh_my_zsh_dest: "~/.oh-my-zsh"
 
-# Files symlinked from the dotfiles repo into place. `src` is relative to the
-# repo root, `dest` is relative to $HOME.
+# Files other tools write to get a small real file in $HOME that loads the
+# repo's copy (`format`: zsh sources it, git includes it), inside a managed
+# block. What installers and `git config --global` add then lands below the
+# block, on this machine only, instead of in the dotfiles repo; the repo's
+# file is still live, so `git pull` there takes effect at once. Change the
+# repo's copy for anything you want on every machine. `src` is relative to
+# the repo root, `dest` to $HOME.
+dotfiles_stubs:
+  - { src: ".zshenv", dest: ".zshenv", format: zsh }
+  - { src: ".zprofile", dest: ".zprofile", format: zsh }
+  - { src: ".zshrc", dest: ".zshrc", format: zsh }
+  - { src: ".gitconfig", dest: ".gitconfig", format: git }
+
+# Files symlinked from the dotfiles repo into place: ones no tool writes to.
+# `src` is relative to the repo root, `dest` is relative to $HOME.
 dotfiles_links:
-  - { src: ".zshenv", dest: ".zshenv" }
-  - { src: ".zprofile", dest: ".zprofile" }
-  - { src: ".zshrc", dest: ".zshrc" }
   - { src: "zsh", dest: ".zsh" }
-  - { src: ".gitconfig", dest: ".gitconfig" }
   - { src: ".gitignore_global", dest: ".gitignore_global" }
   - { src: ".inputrc", dest: ".inputrc" }
   - { src: ".vimrc", dest: ".vimrc" }
@@ -66,8 +75,6 @@ dotfiles_links:
   # the dotfiles repo.
   - { src: "config/mise/config.toml", dest: ".config/mise/config.toml" }
 
-# Ghostty ships themes as files with spaces in the name (`ghostty +list-themes`).
-ghostty_theme: "Afterglow"
 
 # ---------------------------------------------------------------------------
 # SSH

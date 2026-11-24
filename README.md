@@ -58,7 +58,7 @@ make install
 | `xcode` | Verifies the Command Line Tools, accepts the Xcode license, runs first-launch |
 | `homebrew` | Taps, formulae and casks |
 | `mas` | Mac App Store apps (TestFlight, Pages, Numbers, Keynote) |
-| `dotfiles` | oh-my-zsh, then clones the dotfiles repo and symlinks it into `$HOME` |
+| `dotfiles` | oh-my-zsh, then clones the dotfiles repo. `~/.zshenv`, `~/.zprofile`, `~/.zshrc` and `~/.gitconfig` become small real files that load the repo's copy, so what installers and `git config --global` add stays on the machine and out of the repo. The rest are symlinked. The run lists any stub with lines of the machine's own |
 | `git` | Writes identity and the `gh` credential helper to `~/.gitconfig.local` |
 | `claude` | Merges `claude_code_settings` into `~/.claude/settings.json`, keeping your other keys: by default, no Claude Code attribution on commits or PRs |
 | `ssh` | Generates an ed25519 key, configures the agent + keychain, uploads to GitHub |
