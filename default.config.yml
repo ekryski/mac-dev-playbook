@@ -14,6 +14,7 @@ configure_homebrew: true
 configure_mas: true
 configure_dotfiles: true
 configure_git: true
+configure_claude_code: true
 configure_ssh: true
 configure_mise: true
 configure_python: true
@@ -422,6 +423,21 @@ macos_defaults:
 
 # Directory the screenshot preference above points at.
 macos_screenshot_dir: "~/Desktop/Screenshots"
+
+# ---------------------------------------------------------------------------
+# Claude Code (tasks/claude-code.yml)
+#
+# Merged into ~/.claude/settings.json; every other key there is kept. By
+# default this turns off Claude Code's attribution: no Co-Authored-By trailer
+# on commits, no "Generated with Claude Code" line or session link in PR
+# bodies. Its built-in instructions add those even where a repo's AGENTS.md
+# says not to, subagents included; this setting is what stops them.
+# ---------------------------------------------------------------------------
+claude_code_settings:
+  attribution:
+    commit: ""
+    pr: ""
+    sessionUrl: false
 
 # ---------------------------------------------------------------------------
 # Security (tasks/security.yml)

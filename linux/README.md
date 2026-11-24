@@ -63,7 +63,7 @@ cd mac-dev-playbook/linux
 | `brave` | Brave browser | signed repo, `brave.com` |
 | `1password` | 1Password desktop app + `op` CLI (see [Architecture](#architecture)) | signed repo, `1password.com` |
 | `nordvpn` | NordVPN CLI + GUI | signed repo, `repo.nordvpn.com` |
-| `claude` | Claude Code CLI + the desktop app (see [Distribution](#distribution)) | signed repo, `downloads.claude.ai` |
+| `claude` | Claude Code CLI + the desktop app (see [Distribution](#distribution)), then attribution off in `~/.claude/settings.json` (no Co-Authored-By trailer or "Generated with Claude Code" PR line), keeping your other keys | signed repo, `downloads.claude.ai` |
 | `mise` | mise, then Node.js LTS | `mise.run` install script |
 | `uv` | uv, then Python 3.14 | `astral.sh` install script |
 

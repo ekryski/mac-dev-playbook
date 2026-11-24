@@ -60,6 +60,7 @@ make install
 | `mas` | Mac App Store apps (TestFlight, Pages, Numbers, Keynote) |
 | `dotfiles` | oh-my-zsh, then clones the dotfiles repo and symlinks it into `$HOME` |
 | `git` | Writes identity and the `gh` credential helper to `~/.gitconfig.local` |
+| `claude` | Merges `claude_code_settings` into `~/.claude/settings.json`, keeping your other keys: by default, no Claude Code attribution on commits or PRs |
 | `ssh` | Generates an ed25519 key, configures the agent + keychain, uploads to GitHub |
 | `github` | Ensures `gh` + 1Password, pauses for sign-in, uploads the SSH key |
 | `mise` | Your machine-wide node, ruby and go, as ranges kept at the newest patch |

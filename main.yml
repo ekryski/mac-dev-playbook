@@ -84,6 +84,11 @@
       when: configure_git | bool
       tags: ["git"]
 
+    - name: Claude Code settings.
+      ansible.builtin.import_tasks: tasks/claude-code.yml
+      when: configure_claude_code | bool
+      tags: ["claude"]
+
     - name: Language runtimes via mise.
       ansible.builtin.import_tasks: tasks/mise.yml
       when: configure_mise | bool

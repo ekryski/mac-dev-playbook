@@ -1,0 +1,54 @@
+---
+# Claude Code's user settings: merge claude_code_settings into
+# $CLAUDE_CONFIG_DIR/settings.json (else ~/.claude/settings.json) and keep
+# every other key. Written only when a value differs; a symlinked file
+# (dotfiles) is written through the link. A file that isn't a JSON object
+# fails the play and is left alone.
+- name: Find Claude Code's user settings.
+  ansible.builtin.set_fact:
+    claude_settings_file: >-
+      {{ (ansible_facts.env.CLAUDE_CONFIG_DIR | default('', true)
+          or ansible_facts.env.HOME ~ '/.claude') ~ '/settings.json' }}
+
+- name: Check for an existing settings file.
+  ansible.builtin.stat:
+    path: "{{ claude_settings_file }}"
+    follow: true
+  register: claude_settings_stat
+
+- name: Read the existing settings.
+  ansible.builtin.slurp:
+    src: "{{ claude_settings_file }}"
+  register: claude_settings_raw
+  when: claude_settings_stat.stat.exists
+
+- name: Parse the existing settings.
+  ansible.builtin.set_fact:
+    claude_settings_current: >-
+      {{ (claude_settings_raw.content | b64decode | from_json)
+         if claude_settings_stat.stat.exists else {} }}
+
+- name: Fail on a settings file that isn't a JSON object.
+  ansible.builtin.assert:
+    that: claude_settings_current is mapping
+    fail_msg: "{{ claude_settings_file }} is not a JSON object; fix it, then re-run with --tags claude"
+    quiet: true
+
+- name: Merge the playbook's settings.
+  ansible.builtin.set_fact:
+    claude_settings_merged: "{{ claude_settings_current | combine(claude_code_settings, recursive=true) }}"
+
+- name: Create ~/.claude.
+  ansible.builtin.file:
+    path: "{{ claude_settings_file | dirname }}"
+    state: directory
+    mode: "0700"
+  when: not claude_settings_stat.stat.exists
+
+- name: Write Claude Code's user settings.
+  ansible.builtin.copy:
+    content: "{{ claude_settings_merged | to_nice_json(indent=2) }}\n"
+    dest: "{{ claude_settings_file }}"
+    follow: true
+    mode: "{{ claude_settings_stat.stat.mode | default('0600') }}"
+  when: claude_settings_merged != claude_settings_current
