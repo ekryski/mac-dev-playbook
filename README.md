@@ -36,8 +36,9 @@ cp config.example.yml config.yml   # optional overrides
 ansible-playbook main.yml --ask-become-pass
 ```
 
-`--ask-become-pass` is needed for the Xcode license, the software update policy
-and the security settings. Everything else runs unprivileged.
+`--ask-become-pass` is needed for the Xcode license, the software update policy,
+the security settings and the casks that install a `.pkg` (Wireshark,
+DisplayLink, Little Snitch). Everything else runs unprivileged.
 
 For Waffuru work, run the [ops](https://github.com/waffuruai/ops) bootstrap
 after this. The two don't overlap: this playbook owns

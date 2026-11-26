@@ -60,6 +60,10 @@
 
 # accept_external_apps stops the run from blowing up when an app was already
 # dragged into /Applications by hand (very common for Cursor, Chrome, Slack).
+# sudo_password: casks that ship a .pkg (Wireshark, DisplayLink, Little Snitch,
+# Google Drive) call sudo, and with no terminal to ask on that fails. This hands
+# brew the --ask-become-pass password through SUDO_ASKPASS; without that flag
+# the option is left out and such casks fail as before.
 - name: Install Homebrew casks.
   community.general.homebrew_cask:
     name: "{{ homebrew_casks }}"
@@ -67,6 +71,7 @@
     path: "{{ homebrew_bin }}"
     accept_external_apps: true
     install_options: "appdir={{ homebrew_cask_appdir }}"
+    sudo_password: "{{ ansible_become_password | default(omit) }}"
   when: homebrew_casks | length > 0
 
 - name: Upgrade the security-critical Homebrew formulae.
@@ -91,5 +96,6 @@
     upgrade_all: true
     greedy: true
     path: "{{ homebrew_bin }}"
+    sudo_password: "{{ ansible_become_password | default(omit) }}"
   when: homebrew_upgrade_all | bool
   tags: ["homebrew-upgrade"]
