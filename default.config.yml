@@ -175,24 +175,31 @@ homebrew_formulae:
   - zsh-autosuggestions
   - zsh-syntax-highlighting
 
-  # --- shell quality of life ---
-  - bat                   # cat with syntax highlighting
-  - eza                   # modern ls
-  - fd                    # modern find
-  - ripgrep               # modern grep
+  # --- shell tools the dotfiles use ---
+  # The dotfiles check for each one and fall back to the stock command without
+  # it, except git: .gitconfig sets delta as the pager outright.
+  - bat                   # cat with syntax highlighting (the `cat` alias)
+  - eza                   # modern ls (the `ls`, `ll`, `la`, `lt` aliases)
+  - fd                    # modern find; what fzf lists files with
   - fzf                   # fuzzy finder, powers ctrl-r history search
-  - jq
-  - yq
-  - tree
-  - htop
-  - wget
-  - watch
-  - tldr
   - zoxide                # smarter cd
   - git-delta             # better git diffs
-  - shellcheck
-  - shfmt
+
+  # --- scripting ---
+  - jq
+  - ripgrep               # modern grep
+  - shellcheck            # CI lints the shell scripts here with it
   - coreutils
+
+  # --- optional extras ---
+  # Nothing here or in the dotfiles uses these. Uncomment the ones you want
+  # (in config.yml, copy the whole homebrew_formulae list and add them).
+  # - yq
+  # - tree
+  # - htop
+  # - wget
+  # - watch
+  # - shfmt
 
   # --- security / signing ---
   - gnupg
