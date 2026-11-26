@@ -52,7 +52,15 @@ fi
 if [[ -x "${HOMEBREW_PREFIX}/bin/brew" ]]; then
   log "Homebrew already installed at ${HOMEBREW_PREFIX}."
 else
-  log "Installing Homebrew..."
+  # NONINTERACTIVE skips the installer's "Press RETURN" pause, but it also makes
+  # the installer call `sudo -n`, which never asks for a password. On a new Mac
+  # nothing has cached sudo yet, so that fails with "Need sudo access" /
+  # "insufficient permissions". Ask for the password here instead, so the
+  # installer finds the credentials already cached.
+  id -Gn | tr ' ' '\n' | grep -qx admin \
+    || die "Homebrew needs an Administrator account, and $(id -un) is not one. Make it an admin in System Settings > Users & Groups, then re-run."
+  log "Installing Homebrew (enter your Mac password if asked)..."
+  sudo -v || die "sudo is required to install Homebrew."
   NONINTERACTIVE=1 /bin/bash -c \
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
