@@ -1,6 +1,10 @@
 ---
-# Per-machine overrides. Copy to config.yml (gitignored) and change what you
-# need -- anything not listed here falls back to default.config.yml.
+# Per-machine overrides. Copy to config.yml (gitignored).
+#
+# Every setting below is commented out on purpose. You do not need to uncomment
+# them: a copy left as it is changes nothing, and the playbook runs on the
+# defaults in default.config.yml. Uncomment only the lines you want to be
+# different on this machine.
 
 # --- identity -------------------------------------------------------------
 # git_user_name: "Eric Kryski"

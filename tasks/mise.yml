@@ -87,15 +87,13 @@
     value: "{{ mise_idiomatic_version_files | to_json }}"
     mode: "0644"
 
-# Ruby is compiled from source, so ruby-build needs to find Homebrew's OpenSSL
-# and libyaml rather than the system ones.
+# mise installs a precompiled Ruby with its own OpenSSL. When it has none for a
+# version it compiles one, and ruby-build finds Homebrew's libraries itself.
 - name: Install the configured mise tools.
   ansible.builtin.command:
     cmd: "{{ mise_bin }} install --yes"
   environment:
     MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
-    RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
-    PKG_CONFIG_PATH: "{{ homebrew_prefix }}/opt/libyaml/lib/pkgconfig:{{ homebrew_prefix }}/opt/openssl@3/lib/pkgconfig"
   register: mise_install
   changed_when: "'Installing' in mise_install.stdout or 'installed' in mise_install.stdout"
 
@@ -107,8 +105,6 @@
     cmd: "{{ mise_bin }} upgrade --yes --prune"
   environment:
     MISE_TRUSTED_CONFIG_PATHS: "{{ ansible_facts.env.HOME }}/.config/mise"
-    RUBY_CONFIGURE_OPTS: "--with-openssl-dir={{ homebrew_prefix }}/opt/openssl@3"
-    PKG_CONFIG_PATH: "{{ homebrew_prefix }}/opt/libyaml/lib/pkgconfig:{{ homebrew_prefix }}/opt/openssl@3/lib/pkgconfig"
   register: mise_upgrade
   changed_when: "'installed' in mise_upgrade.stdout or 'uninstalled' in mise_upgrade.stdout"
   when: runtimes_upgrade | bool

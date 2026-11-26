@@ -101,7 +101,7 @@ homebrew_upgrade_all: true
 # trusting roots that have since been distrusted.
 homebrew_security_formulae:
   - ca-certificates
-  - openssl@3
+  - openssl@4
 
 homebrew_taps:
   - mongodb/brew
@@ -130,8 +130,10 @@ homebrew_formulae:
   - automake
   - libtool
 
-  # --- ruby build dependencies (mise compiles CRuby from source) ---
-  - openssl@3
+  # --- ruby build dependencies ---
+  # Only used when mise has no precompiled Ruby for a version and falls back to
+  # compiling it. OpenSSL is not listed: the precompiled Ruby carries its own,
+  # and ruby-build finds or builds one itself.
   - readline
   - libyaml
   - gmp
@@ -263,7 +265,7 @@ homebrew_cask_appdir: /Applications
 # bootstrap does, at its pinned versions), and App Store updates can stay on.
 mas_installed_apps:
   - { id: 899247664, name: "TestFlight" }
-  # iWork ships preinstalled on new Macs; listed so a wiped machine gets them.
+  # iWork is not on a new Mac out of the box; this installs it.
   - { id: 409201541, name: "Pages" }
   - { id: 409203825, name: "Numbers" }
   - { id: 409183694, name: "Keynote" }
@@ -294,7 +296,6 @@ software_update_install_app_updates: true
 # something else says so in its own mise.toml or version file. Waffuru's ops
 # bootstrap keeps its pins out of this file: conf.d/waffuru.toml for what it
 # needs machine-wide, ~/waffuru/mise.toml for the org's repos.
-# Ruby is compiled from source, so the first run takes a few minutes.
 # ---------------------------------------------------------------------------
 # mise itself comes from its own installer (https://mise.run) into
 # ~/.local/bin/mise, not Homebrew. Each run updates it with `mise self-update`,

@@ -94,7 +94,9 @@ make dry-run
 
 `default.config.yml` holds every variable and is the documentation. **Don't edit
 it.** Copy `config.example.yml` to `config.yml` (gitignored) and override there —
-it loads after the defaults, so anything it sets wins.
+it loads after the defaults, so anything it sets wins. Everything in the example
+is commented out, so a copy left as it is changes nothing; uncomment only the
+lines you want to be different on this machine.
 
 ```yaml
 # config.yml
@@ -157,7 +159,7 @@ make update     # upgrade every formula, cask and App Store app, plus runtimes
 
 Every run upgrades every formula and cask (`homebrew_upgrade_all`), and macOS
 installs its own and App Store updates in between. Every run also upgrades
-`ca-certificates` and `openssl@3`, and moves the mise
+`ca-certificates` and `openssl@4`, and moves the mise
 runtimes and uv Pythons to the newest patch in their configured range, removing
 the ones they replace (`runtimes_upgrade: false` turns that off).
 
