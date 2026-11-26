@@ -65,6 +65,14 @@ else
     "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
 
+# This script's PATH changes below do not reach the shell that started it, and
+# on a new Mac nothing has put Homebrew on that shell's PATH yet (the dotfiles
+# do, once the playbook has run). Remember whether it was there, so the closing
+# instructions can say how to load it; otherwise `ansible-playbook` is "command
+# not found".
+BREW_ON_PATH=true
+command -v ansible-playbook >/dev/null 2>&1 || BREW_ON_PATH=false
+
 eval "$("${HOMEBREW_PREFIX}/bin/brew" shellenv)"
 
 # ---------------------------------------------------------------------------
@@ -92,12 +100,18 @@ cd "${REPO_DEST}"
 log "Installing Ansible collections..."
 ansible-galaxy install -r requirements.yml
 
+NEXT_SHELLENV=""
+if [[ "${BREW_ON_PATH}" == false ]]; then
+  NEXT_SHELLENV="  eval \"\$(${HOMEBREW_PREFIX}/bin/brew shellenv)\"   # put Homebrew on this terminal's PATH
+"
+fi
+
 cat <<EOF
 
 Bootstrap complete.
 
 Next:
-  cd ${REPO_DEST}
+${NEXT_SHELLENV}  cd ${REPO_DEST}
   cp config.example.yml config.yml   # optional: override anything you like
   ansible-playbook main.yml --ask-become-pass
 

@@ -28,6 +28,9 @@ That installs the Xcode Command Line Tools, Homebrew, git and Ansible, clones
 this repo, and pulls the Galaxy collections. Then:
 
 ```bash
+# First run only: the terminal doesn't have Homebrew on its PATH until the
+# playbook has set up the dotfiles. /usr/local/bin/brew on an Intel Mac.
+eval "$(/opt/homebrew/bin/brew shellenv)"
 cd ~/Development/personal/mac-dev-playbook
 cp config.example.yml config.yml   # optional overrides
 ansible-playbook main.yml --ask-become-pass
