@@ -11,10 +11,10 @@ deps: ## Install the Ansible collections the playbook needs.
 	ansible-galaxy install -r requirements.yml
 
 install: deps ## Run the full playbook.
-	ansible-playbook main.yml --ask-become-pass
+	ansible-playbook main.yml
 
 dry-run: deps ## Show what would change without changing anything.
-	ansible-playbook main.yml --check --diff --ask-become-pass
+	ansible-playbook main.yml --check --diff
 
 check: ## Syntax-check the playbook.
 	ansible-playbook main.yml --syntax-check
@@ -23,6 +23,6 @@ lint: ## Lint the playbook.
 	ansible-lint
 
 update: deps ## Upgrade every Homebrew formula, cask, App Store app and runtime.
-	ansible-playbook main.yml --ask-become-pass \
+	ansible-playbook main.yml \
 		-e homebrew_upgrade_all=true -e mas_upgrade_all=true -e runtimes_upgrade=true \
 		--tags homebrew,mas,languages

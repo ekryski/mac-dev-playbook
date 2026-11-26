@@ -33,12 +33,13 @@ this repo, and pulls the Galaxy collections. Then:
 eval "$(/opt/homebrew/bin/brew shellenv)"
 cd ~/Development/personal/mac-dev-playbook
 cp config.example.yml config.yml   # optional overrides
-ansible-playbook main.yml --ask-become-pass
+ansible-playbook main.yml
 ```
 
-`--ask-become-pass` is needed for the Xcode license, the software update policy,
-the security settings and the casks that install a `.pkg` (Wireshark,
-DisplayLink, Little Snitch). Everything else runs unprivileged.
+The playbook asks for your Mac password once at the start. It is needed for the
+Xcode license, the software update policy, the security settings and the casks
+that install a `.pkg` (Wireshark, DisplayLink, Little Snitch). Everything else
+runs unprivileged.
 
 For Waffuru work, run the [ops](https://github.com/waffuruai/ops) bootstrap
 after this. The two don't overlap: this playbook owns

@@ -7,6 +7,15 @@
   vars_files:
     - default.config.yml
 
+  # Asked once, up front, instead of passing --ask-become-pass. That flag's
+  # password only reaches tasks marked `become`; it is not a variable, so the
+  # cask installs that call sudo themselves (Wireshark, DisplayLink, Little
+  # Snitch) never saw it. Prompting for the variable serves both.
+  vars_prompt:
+    - name: ansible_become_password
+      prompt: "Your Mac password (for sudo)"
+      private: true
+
   pre_tasks:
     - name: Load per-machine overrides from config.yml.
       ansible.builtin.include_vars: config.yml

@@ -113,6 +113,6 @@ Bootstrap complete.
 Next:
 ${NEXT_SHELLENV}  cd ${REPO_DEST}
   cp config.example.yml config.yml   # optional: override anything you like
-  ansible-playbook main.yml --ask-become-pass
+  ansible-playbook main.yml
 
 EOF

@@ -464,7 +464,7 @@ claude_code_settings:
 #
 # The macOS settings Pantry checks (its posture checks, after the CIS macOS
 # Benchmark), set so a new Mac starts out passing them. Each is read first and
-# changed only when it differs. Needs --ask-become-pass.
+# changed only when it differs. Needs sudo.
 # ---------------------------------------------------------------------------
 security_firewall: true                 # application firewall on (CIS 2.2.1)
 security_firewall_stealth: true         # don't answer pings or probes (CIS 2.2.2)
